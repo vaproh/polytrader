@@ -1,26 +1,13 @@
 """The exact Chainlink feed must use the window's open and latest TWAP."""
 from __future__ import annotations
 
-import io
-import json
-
 import pytest
 
 from polytrader.feeds import chainlink
 
 
-class _Resp(io.BytesIO):
-    def __enter__(self):
-        return self
-
-    def __exit__(self, *a):
-        return False
-
-
 def _serve(monkeypatch, payload):
-    monkeypatch.setattr(
-        chainlink.urllib.request, "urlopen",
-        lambda *a, **k: _Resp(json.dumps(payload).encode()))
+    monkeypatch.setattr(chainlink, "_get", lambda *a, **k: payload)
 
 
 def test_fetch_uses_the_first_point_as_the_beat(monkeypatch):
