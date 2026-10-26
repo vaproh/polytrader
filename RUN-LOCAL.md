@@ -111,7 +111,7 @@ and starts in paper mode with the reason printed.
 | `1`..`9` | stake $1..$9 |
 | `a` | custom dollar amount |
 | `o` | stake +$1 |
-| `e` | stop/tp for this preset (saved locally, per preset) |
+| `e` | stop/tp for this preset (this session only, resets on restart) |
 | `b` | bell on/off |
 | `h` | session / all-time trade log (`J`/`K` scroll the log) |
 | `p` | pause the detector |

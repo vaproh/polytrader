@@ -367,7 +367,7 @@ def test_bell_toggle_flips_the_flag(S):
     assert S.bell is True
 
 
-def test_risk_modal_saves_per_preset_numbers(S, tmp_path, monkeypatch):
+def test_risk_modal_applies_per_preset_numbers_for_the_session_only(S, tmp_path, monkeypatch):
     import json
 
     from polytrader import config
@@ -404,9 +404,7 @@ def test_risk_modal_saves_per_preset_numbers(S, tmp_path, monkeypatch):
     assert S.risk == {"FREE": {
         "stop": {"by": "usd", "v": 0.40},
         "tp": {"by": "pct", "v": 0.50}}}
-    assert json.loads(path.read_text())["risk"] == {"FREE": {
-        "stop": {"by": "usd", "v": 0.40},
-        "tp": {"by": "pct", "v": 0.50}}}
+    assert "risk" not in json.loads(path.read_text())
 
 
 class _ModalHost(App):

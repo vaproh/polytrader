@@ -301,12 +301,12 @@ class TraderApp(App):
     # ---- keys
     def action_stake(self, n):
         S.stake = float(n)
-        save_cfg({"preset": S.preset, "stake": S.stake, "risk": S.risk})
+        save_cfg({"preset": S.preset, "stake": S.stake})
         S.msg = f"stake ${S.stake:,.2f}"
 
     def action_stake_cycle(self):
         S.stake = round(S.stake + 1, 2)
-        save_cfg({"preset": S.preset, "stake": S.stake, "risk": S.risk})
+        save_cfg({"preset": S.preset, "stake": S.stake})
         S.msg = f"stake ${S.stake:,.2f}"
 
     def action_amount(self):
@@ -314,7 +314,7 @@ class TraderApp(App):
             if value is None:
                 return
             S.stake = value
-            save_cfg({"preset": S.preset, "stake": value, "risk": S.risk})
+            save_cfg({"preset": S.preset, "stake": value})
             S.msg = f"stake ${value:,.2f}"
             self.refresh_view()
 
@@ -328,9 +328,10 @@ class TraderApp(App):
                 return
             S.risk = dict(S.risk)
             S.risk[S.preset] = value
-            save_cfg({"preset": S.preset, "stake": S.stake, "risk": S.risk})
+            save_cfg({"preset": S.preset, "stake": S.stake})
             S.msg = (f"{S.preset} risk: stop "
-                     f"{fmt_leg(value['stop'], '-')}  tp {fmt_leg(value['tp'])}")
+                     f"{fmt_leg(value['stop'], '-')}  tp {fmt_leg(value['tp'])}"
+                     " (session only)")
             self.refresh_view()
 
         self.push_screen(RiskScreen(S.preset, pr["stop"], pr["tp"]), apply)
@@ -386,7 +387,7 @@ class TraderApp(App):
 
     def _set_preset(self, name):
         S.preset = name
-        save_cfg({"preset": name, "stake": S.stake, "risk": S.risk})
+        save_cfg({"preset": name, "stake": S.stake})
         pr = effective_preset(name, S.risk)
         S.msg = (f"preset {name}: stop {fmt_leg(pr['stop'], '-')}  "
                  f"tp {fmt_leg(pr['tp'])}  be +{pr['be'] * 100:.0f}%")

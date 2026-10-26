@@ -60,7 +60,23 @@ def test_changing_preset_keeps_the_stake(tmp_path, monkeypatch):
     assert S.preset == "TIGHT"
     assert S.stake == 8
     assert json.loads(path.read_text()) == {
-        "preset": "TIGHT", "stake": 8, "risk": {}}
+        "preset": "TIGHT", "stake": 8}
+
+
+def test_stale_risk_in_the_cfg_file_is_ignored(S, tmp_path, monkeypatch):
+    from polytrader import config, state
+
+    path = tmp_path / "cfg.json"
+    monkeypatch.setattr(config, "CFG_PATH", str(path))
+    path.write_text(json.dumps({
+        "preset": "SCALP", "stake": 5,
+        "risk": {"SCALP": {"stop": 0.01, "tp": 0.02}}}))
+
+    state.S.__init__()
+
+    assert S.risk == {}
+    assert S.preset == "SCALP"
+    assert S.stake == 5
 
 
 def test_risk_overrides_are_local_and_per_preset():
