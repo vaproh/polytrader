@@ -125,8 +125,9 @@ The exchange rejects marketable orders under ~$1. After it truncates sub-cent
 digits and floors the share count, a $1.00 stake can evaluate to $0.98 and get
 refused. Start at $2 or more; the amount prompt says the same.
 
-`e` edits the stop and take-profit percents for the current preset only
-(0 disables). They persist in `~/.polytrader.json`, never in the repo, and
+`e` edits the stop and take-profit for the current preset only
+(percent like `25%`, dollars like `$0.50`, or cents like `50c`; 0 disables).
+They persist in `~/.polytrader.json`, never in the repo, and
 each preset keeps its own numbers.
 
 ## Safety properties built in

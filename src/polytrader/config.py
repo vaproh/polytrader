@@ -38,23 +38,51 @@ def save_cfg(d):
         pass
 
 
+def _leg(raw, default):
+    """Normalize a stop/tp override to {"by": "pct"|"usd", "v": float}.
+
+    Bare numbers are percents, the pre-dollars format, so old cfg files keep
+    working. Anything unparseable falls back to the default leg.
+    """
+    if isinstance(raw, dict):
+        by = raw.get("by", "pct")
+        try:
+            v = float(raw.get("v"))
+        except (TypeError, ValueError):
+            return dict(default)
+        if by == "usd":
+            return {"by": "usd", "v": v} if v > 0 else dict(default)
+        return {"by": "pct", "v": v} if v >= 0 else dict(default)
+    try:
+        v = float(raw)
+    except (TypeError, ValueError):
+        return dict(default)
+    return {"by": "pct", "v": v} if v >= 0 else dict(default)
+
+
 def effective_preset(name, risk):
     """Base preset with this preset's local stop/tp overrides applied.
 
     Overrides live only in the local cfg file, never in the repo, and each
     preset keeps its own numbers. Bad values fall back to the base preset.
     """
-    base = dict(PRESETS.get(name, PRESETS["SCALP"]))
+    base = PRESETS.get(name, PRESETS["SCALP"])
+    eff = {"stop": {"by": "pct", "v": base["stop"]},
+           "tp": {"by": "pct", "v": base["tp"]},
+           "be": base["be"]}
     ov = (risk or {}).get(name, {})
     if isinstance(ov, dict):
         for key in ("stop", "tp"):
-            try:
-                v = float(ov.get(key))
-            except (TypeError, ValueError):
-                continue
-            if v >= 0:
-                base[key] = v
-    return base
+            if key in ov:
+                eff[key] = _leg(ov[key], eff[key])
+    return eff
+
+
+def fmt_leg(leg, sign="+"):
+    """"+25%" / "+$0.50" for TP lines, "-25%" / "-$0.50" for stop lines."""
+    if leg["by"] == "usd":
+        return f"{sign}${leg['v']:.2f}"
+    return f"{sign}{leg['v'] * 100:.0f}%"
 
 
 def load_risk(cfg):

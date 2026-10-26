@@ -69,22 +69,35 @@ def test_risk_overrides_are_local_and_per_preset():
     risk = {"SCALP": {"stop": 0.10, "tp": 0.60}, "FREE": {"stop": 0.05}}
 
     scalp = effective_preset("SCALP", risk)
-    assert scalp["stop"] == 0.10
-    assert scalp["tp"] == 0.60
+    assert scalp["stop"] == {"by": "pct", "v": 0.10}
+    assert scalp["tp"] == {"by": "pct", "v": 0.60}
     assert scalp["be"] == 0.30  # untouched leg stays on the base preset
 
     runner = effective_preset("RUNNER", risk)
-    assert runner == {"stop": 0.25, "tp": 1.00, "be": 0.40}
+    assert runner == {"stop": {"by": "pct", "v": 0.25},
+                      "tp": {"by": "pct", "v": 1.00}, "be": 0.40}
 
     free = effective_preset("FREE", risk)
-    assert free["stop"] == 0.05
-    assert free["tp"] == 0.0
+    assert free["stop"] == {"by": "pct", "v": 0.05}
+    assert free["tp"] == {"by": "pct", "v": 0.0}
+
+
+def test_dollar_legs_survive_effective_preset():
+    from polytrader.config import effective_preset
+
+    risk = {"SCALP": {"stop": {"by": "usd", "v": 0.40},
+                      "tp": {"by": "usd", "v": 0.50}}}
+
+    scalp = effective_preset("SCALP", risk)
+    assert scalp["stop"] == {"by": "usd", "v": 0.40}
+    assert scalp["tp"] == {"by": "usd", "v": 0.50}
 
 
 def test_bad_risk_overrides_fall_back_to_base():
     from polytrader.config import effective_preset
 
     assert effective_preset("SCALP", {"SCALP": {"stop": -1, "tp": "x"}}) == {
-        "stop": 0.20, "tp": 0.50, "be": 0.30}
-    assert effective_preset("SCALP", None)["stop"] == 0.20
-    assert effective_preset("NOPE", {})["stop"] == 0.20
+        "stop": {"by": "pct", "v": 0.20},
+        "tp": {"by": "pct", "v": 0.50}, "be": 0.30}
+    assert effective_preset("SCALP", None)["stop"] == {"by": "pct", "v": 0.20}
+    assert effective_preset("NOPE", {})["stop"] == {"by": "pct", "v": 0.20}

@@ -5,7 +5,7 @@ import time
 
 from rich.text import Text
 
-from ..config import effective_preset
+from ..config import effective_preset, fmt_leg
 from ..detector import (btc_state, fair_p, gate_checks, rsi_last, vol_window,
                         warnings)
 from ..state import S, cur_book, mark_price, secs_left
@@ -338,19 +338,20 @@ def make_position_text():
             p.append("--\n", style="dim")
 
         pr = effective_preset(S.preset, S.risk)
-        stop_px = S.pos.entry if S.pos.locked else S.pos.entry * (1 - pr["stop"])
+        stop_px = (S.pos.entry if S.pos.locked
+                   else _leg_price(S.pos.entry, S.pos.qty, pr["stop"], -1))
         p.append("  stop ", style="dim")
         if not S.stop_on:
             p.append("OFF", style="bold yellow")
-        elif pr["stop"] <= 0 and not S.pos.locked:
+        elif stop_px is None and not S.pos.locked:
             p.append("none (FREE)", style="dim")
         else:
             label = "BE " if S.pos.locked else ""
             p.append(f"{label}{_c(stop_px)}", style="red")
             if mk is not None and mk <= stop_px:
                 p.append(" (breached)", style="bold red")
-        if pr["tp"] > 0:
-            tp_px = S.pos.entry * (1 + pr["tp"])
+        tp_px = _leg_price(S.pos.entry, S.pos.qty, pr["tp"], +1)
+        if tp_px is not None:
             p.append("   tp ", style="dim")
             p.append(f"{_c(tp_px)}" if tp_px <= 0.99 else "unreachable",
                      style="green" if tp_px <= 0.99 else "bold yellow")
@@ -372,17 +373,35 @@ def make_position_text():
         p.append("\n", style="dim")
 
     pr = effective_preset(S.preset, S.risk)
+    stop, tp = pr["stop"], pr["tp"]
     if not S.stop_on:
         stop_state = "OFF"
-    elif pr["stop"] <= 0:
-        stop_state = "none"
-    else:
+    elif _leg_on(stop):
         stop_state = "ARMED"
+    else:
+        stop_state = "none"
     p.append(f"  preset {S.preset}   stop {stop_state}", style="dim")
-    if S.stop_on and pr["stop"] > 0:
-        p.append(f" (-{pr['stop'] * 100:.0f}%)", style="dim")
-    p.append(f"   tp +{pr['tp'] * 100:.0f}%   be +{pr['be'] * 100:.0f}%\n", style="dim")
+    if S.stop_on and _leg_on(stop):
+        p.append(f" ({fmt_leg(stop, '-')})", style="dim")
+    p.append(f"   tp {fmt_leg(tp)}   be +{pr['be'] * 100:.0f}%\n", style="dim")
     return p
+
+
+def _leg_on(leg):
+    return leg["v"] > 0
+
+
+def _leg_price(entry, qty, leg, sign):
+    """The contract price where a stop (-1) or TP (+1) leg fires.
+
+    Dollar legs divide by the position size; without a size there is no
+    price, so they read as unset. A zero leg is disabled and reads as None.
+    """
+    if leg["v"] <= 0:
+        return None
+    if leg["by"] == "usd":
+        return entry + sign * leg["v"] / qty if qty else None
+    return entry * (1 + sign * leg["v"])
 
 
 def make_alerts_text():

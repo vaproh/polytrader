@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import time
 
-from .config import effective_preset
+from .config import effective_preset, fmt_leg
 from .detector import twap60
 from .state import S, mark_price
 
@@ -65,25 +65,39 @@ def roll_to_window(ws, toks, px=None):
     S.msg = f"window {ws}"
 
 
-def exit_decision(entry, mark, preset, stop_on=True, locked=False):
+def exit_decision(entry, mark, preset, stop_on=True, locked=False, qty=None):
     """Pure exit rule: (reason or None, locked).
 
     Order matters: breakeven arms first, then TP, then the stop. If TP and the
-    stop could both fire on one tick, TP wins -- you were in profit.
+    stop could both fire on one tick, TP wins -- you were in profit. Dollar
+    legs need the position size to evaluate, so without `qty` they stay inert.
     """
     pr = effective_preset(preset, S.risk)
     if pr["be"] > 0 and not locked and mark >= entry * (1 + pr["be"]):
         locked = True
-    if pr["tp"] > 0 and mark >= entry * (1 + pr["tp"]):
-        return f"TAKE PROFIT +{pr['tp'] * 100:.0f}%", locked
+    tp, stop = pr["tp"], pr["stop"]
+    if _tp_hit(entry, mark, qty, tp):
+        return f"TAKE PROFIT {fmt_leg(tp)}", locked
     if not stop_on:
         return None, locked
     if locked:
         if mark <= entry:
             return "BE STOP", locked
         return None, locked
-    if pr["stop"] <= 0:
-        return None, locked
-    if mark <= entry * (1 - pr["stop"]):
-        return f"STOP -{pr['stop'] * 100:.0f}%", locked
+    if _stop_hit(entry, mark, qty, stop):
+        return f"STOP {fmt_leg(stop, '-')}", locked
     return None, locked
+
+
+def _tp_hit(entry, mark, qty, leg):
+    if leg["by"] == "usd":
+        return (bool(qty) and leg["v"] > 0
+                and (mark - entry) * qty >= leg["v"])
+    return leg["v"] > 0 and mark >= entry * (1 + leg["v"])
+
+
+def _stop_hit(entry, mark, qty, leg):
+    if leg["by"] == "usd":
+        return (bool(qty) and leg["v"] > 0
+                and (mark - entry) * qty <= -leg["v"])
+    return leg["v"] > 0 and mark <= entry * (1 - leg["v"])
