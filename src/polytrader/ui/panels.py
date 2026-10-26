@@ -7,8 +7,8 @@ from datetime import datetime
 from rich.text import Text
 
 from ..config import effective_preset, fmt_leg
-from ..detector import (btc_state, fair_p, gate_checks, rsi_last, vol_window,
-                        warnings)
+from ..detector import (btc_state, fair_p, gate_checks, rsi_fast, rsi_last,
+                        vol_window, warnings)
 from ..state import S, cur_book, mark_price, secs_left
 
 REG_STYLE = {"DEAD": "red", "TREND": "red", "CHOP": "green",
@@ -299,6 +299,12 @@ def make_signal_text():
             t.append(f"{p}:{r:.1f} ", style=col)
     else:
         t.append(f"-- ({len(S.klines)}/7 bars)", style="dim")
+    rf = rsi_fast()
+    if rf is None:
+        t.append("  5s:--", style="dim")
+    else:
+        col = "red" if rf >= 70 else ("green" if rf <= 30 else "white")
+        t.append(f"  5s:{rf:.1f}", style=col)
     t.append("\n")
 
     ch = gate_checks()
@@ -352,7 +358,10 @@ def make_position_text():
             if mk is not None and mk <= stop_px:
                 p.append(" (breached)", style="bold red")
         tp_px = _leg_price(S.pos.entry, S.pos.qty, pr["tp"], +1)
-        if tp_px is not None:
+        if not S.tp_on:
+            p.append("   tp ", style="dim")
+            p.append("OFF", style="bold yellow")
+        elif tp_px is not None:
             p.append("   tp ", style="dim")
             p.append(f"{_c(tp_px)}" if tp_px <= 0.99 else "unreachable",
                      style="green" if tp_px <= 0.99 else "bold yellow")
@@ -384,7 +393,8 @@ def make_position_text():
     p.append(f"  preset {S.preset}   stop {stop_state}", style="dim")
     if S.stop_on and _leg_on(stop):
         p.append(f" ({fmt_leg(stop, '-')})", style="dim")
-    p.append(f"   tp {fmt_leg(tp)}   be +{pr['be'] * 100:.0f}%\n", style="dim")
+    p.append(f"   tp {'OFF' if not S.tp_on else fmt_leg(tp)}"
+             f"   be +{pr['be'] * 100:.0f}%\n", style="dim")
     return p
 
 

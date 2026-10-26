@@ -176,3 +176,20 @@ def test_gate_checks_pass_on_their_own_rulebook(S):
 
     S.ws_start = int(time.time()) - 60
     assert all(ok for _, ok, _ in detector.gate_checks())
+
+
+def test_rsi_fast_needs_eighty_seconds_of_ticks():
+    S.btc_hist.clear()
+    S.btc_hist.extend((1000.0 + i * 0.1, 80000.0) for i in range(300))
+    assert detector.rsi_fast() is None
+    S.btc_hist.clear()
+
+
+def test_rsi_fast_reads_the_tape_direction():
+    S.btc_hist.clear()
+    S.btc_hist.extend((2000.0 + i * 0.1, 80000.0 + i) for i in range(800))
+    assert detector.rsi_fast() > 60
+    S.btc_hist.clear()
+    S.btc_hist.extend((2000.0 + i * 0.1, 80800.0 - i) for i in range(800))
+    assert detector.rsi_fast() < 40
+    S.btc_hist.clear()

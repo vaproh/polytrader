@@ -36,8 +36,8 @@ async def window_loop():
         ws = int(now // 300 * 300)
         left = 300 - (now - ws)
 
-        # warm the next window ahead of time so rollover costs no round-trip
-        if left <= 20:
+        # warm the next window a minute ahead so rollover costs no round-trip
+        if left <= 60:
             asyncio.create_task(_prefetch(ws + 300))
 
         if not S.window_loading and ws != S.ws_start:

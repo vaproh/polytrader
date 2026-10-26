@@ -116,6 +116,8 @@ and starts in paper mode with the reason printed.
 | `h` | session / all-time trade log (`J`/`K` scroll the log) |
 | `p` | pause the detector |
 | `r` | reload the window |
+| `k` | stop arm/disarm |
+| `T` | exits (tp+stop) on/off |
 | `L` | toggle paper / live |
 | `q` | quit |
 

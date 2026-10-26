@@ -174,6 +174,16 @@ def test_dollar_legs_stay_inert_without_a_size(S):
     assert reason is None
 
 
+def test_tp_off_leaves_the_stop_armed(S):
+    S.risk = {}
+
+    reason, _ = exit_decision(0.40, 0.30, "SCALP", tp_on=False, qty=10.0)
+    assert reason == "STOP -20%"
+
+    reason, _ = exit_decision(0.40, 0.65, "SCALP", tp_on=False, qty=10.0)
+    assert reason is None
+
+
 def test_dust_the_exchange_cannot_sell_is_absorbed(S):
     from polytrader.engine import settle_position
 
