@@ -475,3 +475,34 @@ def test_amount_binding_sets_the_stake(S, monkeypatch):
     asyncio.run(go())
 
     assert S.stake == 12.34
+
+
+def test_live_sell_books_dust_instead_of_sending_it(S, monkeypatch):
+    from polytrader.state import Book
+    from polytrader.ui import app as ui
+
+    async def noop(*_a, **_k):
+        return None
+
+    for name in ("binance_loop", "window_loop", "chainlink_loop",
+                 "rest_fallback_loop", "basis_loop", "clob_loop"):
+        monkeypatch.setattr(ui, name, noop)
+    monkeypatch.setattr(ui, "fetch_klines", lambda: [])
+    S.tokens = {"dn": "TOK"}
+    S.books = {"TOK": Book(bids={0.05: 100.0})}
+    S.pos.side = "dn"
+    S.pos.qty = 0.007
+    S.pos.entry = 0.35
+    S.stop_on = False  # the mounted detector must not paper-stop the position
+
+    app = ui.TraderApp()
+
+    async def go():
+        async with app.run_test() as pilot:
+            await app._live_sell(0.05)
+            await pilot.pause()
+
+    asyncio.run(go())
+
+    assert S.pos.side == ""
+    assert S.trades[0]["reason"] == "dust"

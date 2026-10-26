@@ -69,11 +69,10 @@ def settle_position(reason="", px=None, qty=None):
     del S.trades[200:]
     record_trade(tr)
     S.pos.qty -= q
-    # Orders round shares to 2dp, so a remainder below half a hundredth can
-    # never be sent: the SDK refuses it as "shares must be a positive number".
-    # Absorb the dust instead of leaving a 0.0-share position that blocks the
-    # next buy and fails every sell.
-    if S.pos.qty <= 1e-9 or round(S.pos.qty, 2) == 0:
+    # Anything below the 0.01 minimum share unit cannot be sent (the CLOB
+    # would reject it and the SDK refuses it), so clear it instead of leaving
+    # a position that blocks the next buy and fails every sell.
+    if S.pos.qty < 0.01:
         S.pos.clear()
         S.msg = f"closed {reason}"
     else:

@@ -190,6 +190,23 @@ def test_dust_the_exchange_cannot_sell_is_absorbed(S):
     assert S.trades[0]["qty"] == pytest.approx(2.496)
 
 
+def test_floored_sell_remainder_is_absorbed(S):
+    # the chain holds 5.457143 shares, the broker sends 5.45: the 0.007 rest
+    # is below the minimum share unit and must clear, not stick the position
+    from polytrader.engine import settle_position
+
+    S.tokens = {"dn": "TOK"}
+    S.books = {"TOK": Book(bids={0.05: 100.0})}
+    S.pos.side = "dn"
+    S.pos.qty = 5.457143
+    S.pos.entry = 0.35
+
+    settle_position("sold", 0.05, 5.45)
+
+    assert S.pos.side == ""
+    assert S.pos.qty == 0.0
+
+
 def test_secs_left_counts_down_from_the_window_open(S):
     import time
 

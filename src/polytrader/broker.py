@@ -23,7 +23,7 @@ Design rules
 from __future__ import annotations
 
 import os
-from decimal import ROUND_HALF_UP, Decimal
+from decimal import ROUND_DOWN, ROUND_HALF_UP, Decimal
 from pathlib import Path
 
 MAX_USDC_DEFAULT = 0.0   # 0 means no cap
@@ -169,29 +169,38 @@ class LiveBroker:
             return False, f"buy failed: {str(e)[:80]}"
 
     def sell(self, token_id: str, shares: float, bid: float):
-        """Market-sell `shares`, refusing to dump far below `bid`."""
+        """Market-sell `shares`, refusing to dump far below `bid`.
+
+        Shares are floored to whole cents: rounding up can exceed the wallet
+        balance by a fraction of a share and the CLOB rejects the whole order
+        with "not enough balance". The leftover dust is absorbed when booking.
+        """
         if not self.ok:
             return False, self.error or "broker not ready"
         if shares <= 0:
             return False, "no shares"
+        qty = float(Decimal(str(shares)).quantize(Decimal("0.01"),
+                                                  rounding=ROUND_DOWN))
+        if qty <= 0:
+            return False, "dust below 0.01sh -- nothing the exchange can take"
         tick = self.tick(token_id)
         if tick is None:
             return False, "unknown tick size -- order refused"
         limit = _snap(max(0.01, bid - SLIPPAGE_TICKS * tick), tick)
         if self.dry_run:
-            return True, f"DRY sell {shares:.2f}sh @>={limit * 100:.1f}¢"
+            return True, f"DRY sell {qty:.2f}sh @>={limit * 100:.1f}¢"
         try:
             resp = self._client.place_market_order(
-                asset_id=token_id, side="SELL", shares=round(shares, 2),
+                asset_id=token_id, side="SELL", shares=qty,
                 min_price=limit, order_type="FAK",
             )
-            ok, detail = self._interpret(resp, f"sell {shares:.2f}sh @>={limit * 100:.1f}¢")
+            ok, detail = self._interpret(resp, f"sell {qty:.2f}sh @>={limit * 100:.1f}¢")
             if ok:
                 filled = self._record_fill(resp, "SELL")
                 if filled <= 0:
                     return False, f"{detail} -- accepted but nothing filled"
-                if filled < shares - 1e-9:
-                    detail += f" (partial {filled:.2f}/{shares:.2f})"
+                if filled < qty - 1e-9:
+                    detail += f" (partial {filled:.2f}/{qty:.2f})"
             return ok, detail
         except Exception as e:
             return False, f"sell failed: {str(e)[:80]}"
