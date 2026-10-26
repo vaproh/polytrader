@@ -22,7 +22,7 @@ async def _prefetch(ws_next):
     try:
         m = await asyncio.to_thread(poly.market, f"btc-updown-5m-{ws_next}")
         if m:
-            S.prefetch[ws_next] = _parse_tokens(m)
+            S.prefetch[ws_next] = m
     except Exception:
         pass
     finally:
@@ -38,13 +38,13 @@ async def _refresh_next(ws_next):
     if S.ws_start and ws_next != S.ws_start + 300:
         return
     try:
-        toks = S.prefetch.get(ws_next)
-        if toks is None:
+        m = S.prefetch.get(ws_next)
+        if m is None:
             m = await asyncio.to_thread(poly.market, f"btc-updown-5m-{ws_next}")
             if not m:
                 return
-            toks = _parse_tokens(m)
-            S.prefetch[ws_next] = toks
+            S.prefetch[ws_next] = m
+        toks = _parse_tokens(m)
         if "up" not in toks or "dn" not in toks:
             return
         books = {}
@@ -121,11 +121,12 @@ async def window_loop():
         if not S.window_loading and ws > S.ws_start:
             S.window_loading = True
             try:
-                toks = S.prefetch.pop(ws, None)
-                if toks is None:
+                m = S.prefetch.pop(ws, None)
+                if m is None:
                     m = await asyncio.to_thread(poly.market, f"btc-updown-5m-{ws}")
-                    toks = _parse_tokens(m) if m else None
+                toks = _parse_tokens(m) if m else None
                 if toks:
+                    S.cond = m.get("condition_id", "") if m else S.cond
                     note = ""
                     fill_px = None
                     if S.pos.side and S.live and S.broker and S.broker.ok:

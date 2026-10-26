@@ -117,6 +117,8 @@ class State:
         self.next_slug = ""
         self.next_ws = 0
         self.next_ts = 0.0  # last refresh of the next window's books
+        self.cond = ""    # current window's event condition id (for the tape)
+        self.flow: list[dict] = []  # newest taker fills, newest first
         self.broker = None
         self.busy = False
         self.exit_retry_ts = 0.0

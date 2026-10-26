@@ -8,6 +8,7 @@ import urllib.request
 
 GAMMA = "https://gamma-api.polymarket.com"
 CLOB = "https://clob.polymarket.com"
+DATA = "https://data-api.polymarket.com"
 UA = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0 Safari/537.36"
 
 
@@ -105,3 +106,30 @@ def book(token_id):
         "ask_depth_3c": da3, "bid_depth_3c": db3,
         "n_ask_levels": len(asks), "n_bid_levels": len(bids),
     }
+
+
+def recent_trades(condition_id, limit=12):
+    """Newest taker fills for the event, newest first. Never raises.
+
+    This is the same tape the website shows: who just bought, how much,
+    on which outcome. Takes the event condition id, not a token id.
+    """
+    try:
+        rows = _get_retry(f"{DATA}/trades?market={condition_id}&limit={limit}",
+                          timeout=10)
+    except Exception:
+        return []
+    out = []
+    for r in rows if isinstance(rows, list) else []:
+        try:
+            out.append({
+                "ts": float(r["timestamp"]),
+                "side": ("dn" if str(r.get("outcome", "")).lower()
+                         in ("down", "no") else "up"),
+                "usd": float(r["size"]) * float(r["price"]),
+                "px": float(r["price"]),
+            })
+        except (KeyError, TypeError, ValueError):
+            continue
+    out.sort(key=lambda f: f["ts"], reverse=True)
+    return out

@@ -130,7 +130,7 @@ def test_h_key_toggles_session_and_all_time(S, monkeypatch):
         return None
 
     for name in ("binance_loop", "window_loop", "chainlink_loop",
-                 "rest_fallback_loop", "basis_loop", "clob_loop"):
+                 "rest_fallback_loop", "basis_loop", "clob_loop", "flow_loop"):
         monkeypatch.setattr(ui, name, noop)
     monkeypatch.setattr(ui, "fetch_klines", lambda: [])
     application = ui.TraderApp()

@@ -510,6 +510,11 @@ def make_alerts_text():
         a.append(" / ", style="dim")
         a.append(f"sell {sv:.1f}", style="red")
         a.append(f"   CVD session {S.cvd:+.1f}", style="dim")
+    if S.flow:
+        a.append("   FLOW ", style="dim")
+        for f in S.flow[:10]:
+            a.append(f" +${f['usd']:.0f}",
+                     style="green" if f["side"] == "up" else "red")
     a.append("\n")
     for sev, txt in wl[:3]:
         a.append("  \u2022 ", style=sev)
