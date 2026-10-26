@@ -14,9 +14,9 @@ gets out of the way.
 ```bash
 uv sync
 
-uv run python trader.py              # paper, no credentials
-uv run python trader.py --dry        # credential + price-bound check; nothing sent
-uv run python trader.py --live       # real orders
+uv run polytrader              # paper, no credentials
+uv run polytrader --dry        # credential + price-bound check; nothing sent
+uv run polytrader --live       # real orders
 ```
 
 `uv sync` builds `.venv` from `pyproject.toml` and `uv.lock`; every command
@@ -57,13 +57,17 @@ rather than printed as if reachable.
 
 ## 2. Resolution mechanics
 
-Chainlink **BTC/USD 60-second TWAP averaged across the window** vs the
-window-open price, not the final tick. An early move keeps counting even if
-spot reverts; a late spike barely moves it.
+Polymarket resolves against the **Chainlink BTC/USD 60-second TWAP**. The TWAP
+at the window open sets the **price to beat**, and the TWAP at the close sets
+the **final price**; Up wins when final is greater than or equal to beat. It is
+two 60-second lookbacks, not a five-minute average.
 
-Chainlink is a **USD** index, Binance quotes USDT, so levels need
-`× USDT/USD` (measured 0.998730) or you carry a **$114** phantom basis at 80k.
-Ratios need no adjustment.
+Chainlink is a **USD** index and Binance quotes USDT, so the terminal takes the
+60-second mean of its own BTC ticks and multiplies by **USDT/USD** (Kraken,
+refreshed once a minute). Measured against Polymarket's published values over
+24 windows, that lands within **$3.73 on average and $10.56 worst**; unadjusted
+it is off by about $125. With credentials, `CryptoTwapPriceSpec` from
+`polymarket-client` is the exact feed and replaces the proxy.
 
 Slug: `btc-updown-5m-<windowStartUnixTs>`, window = `ts .. ts+300`.
 
@@ -73,6 +77,8 @@ Slug: `btc-updown-5m-<windowStartUnixTs>`, window = `ts .. ts+300`.
 
 ```
 Binance aggTrade WS ──► S.btc, btc_hist, trade_hist (buy/sell volume, CVD)
+                              │
+                     60s mean × USDT/USD ──► S.twap, strike
 Polymarket CLOB WS  ──► S.books (tick-exact: every message mutates the book)
                               │
                      250ms bucket (tick overwrites current bucket)
@@ -123,15 +129,15 @@ Six panels, top to bottom:
 
 | panel | meaning |
 |---|---|
-| **top** | BTC spot, session %, mode, stake, status; distance to strike, z-score, tick vol, travel, 30s/60s move; fair value vs market ask; RSI(14) and a sparkline |
+| **top** | BTC spot, 60s TWAP, session %, mode, stake, status; distance to strike, z-score, tick vol, travel, 30s/60s move; fair value vs market ask; RSI(14) and a sparkline |
 | **books** | both outcome tokens, best bid/ask, size, depth within 3c, pair sum |
 | **regime** | detected state with travel, efficiency, net, reversals, drift |
 | **pos** | side, size, entry, mark, P&L, stop and TP prices, session P&L, win rate |
 | **alerts** | mechanical warnings: RSI extremes, volume surge, aggressor split, CVD, divergence, vol expansion, streaks, EMA200, MACD, Bollinger squeeze |
 | **stats** | base rates for the detected regime and the old gate rules, one PASS/FAIL each |
 
-First ~36 seconds of each window show `WARMUP`: the detector needs 36 s of book
-history before it names a regime. A brand-new window also has an empty book for
+First ~31 seconds of each window show `WARMUP`: the detector needs about 31 s
+of book history before it names a regime. A brand-new window also has an empty book for
 ~8 s, which is real, not a bug.
 
 **Base rates are frequencies, not a recommendation.** They are measured on a
@@ -176,6 +182,9 @@ at `_make_client`, so they never place an order or read a key.
   on a binary contract. Worst case stays near −95% at any width.
 - One position at a time. Quitting with a live position leaves it open in your
   wallet with no tracker.
+- The strike is a proxy: Binance 60s mean times USDT/USD, within $3.73 on
+  average and $10.56 worst over the 24 windows measured. Near the money that can
+  move fair value by a few points. The exact Chainlink stream needs credentials.
 - `POLY_MAX_USDC` is off unless you set it.
 
 ---
@@ -184,9 +193,9 @@ at `_make_client`, so they never place an order or read a key.
 
 | file | purpose |
 |---|---|
-| **`trader.py`** | the terminal: feeds, detector, exits, panels, keys |
-| `execution.py` | live broker (`polymarket-client`), opt-in; `python execution.py` prints the derived signer |
-| `pm_tools.py` | Polymarket REST helpers: market lookup, book, trades, wallets |
+| **`src/polytrader/`** | the terminal: `state`, `config`, `detector`, `engine`, `feeds/`, `ui/` |
+| `src/polytrader/broker.py` | live broker (`polymarket-client`), opt-in; `uv run polytrader-doctor` prints the derived signer |
+| `src/polytrader/poly.py` | Polymarket REST helpers: market lookup and book |
 | `tests/` | pytest suite |
 | `RUN-LOCAL.md` | credentials, allowances, wallet setup |
 | `.env.example` | credential template |
@@ -203,6 +212,8 @@ at `_make_client`, so they never place an order or read a key.
 | `wss://ws-subscriptions-clob.polymarket.com/ws/market` | book, price_change, last_trade_price |
 | `gamma-api.polymarket.com/markets?slug=` | token IDs for the current window |
 | `clob.polymarket.com/book?token_id=` | REST fallback when the socket is quiet |
+| `api.kraken.com/0/public/Ticker?pair=USDTZUSD` | USDT/USD basis, refreshed once a minute |
+| Polymarket `prices.crypto.twap` | exact Chainlink 60s TWAP, optional, needs `AsyncSecureClient` |
 
 Closed markets need `&closed=true` on the gamma `markets?slug=` query.
 

@@ -3,8 +3,8 @@ from __future__ import annotations
 
 import pytest
 
-import trader
-from trader import exit_decision
+from polytrader.engine import exit_decision, settle_position
+from polytrader.state import Book, S, secs_left
 
 ENTRY = 0.40
 
@@ -74,61 +74,61 @@ def test_unknown_preset_falls_back_to_scalp():
 
 
 def test_settle_records_the_trade_and_clears_the_position(S):
-    trader.S.tokens = {"up": "TOK"}
-    trader.S.books = {"TOK": trader.Book(bids={0.50: 100.0})}
-    trader.S.pos.side = "up"
-    trader.S.pos.qty = 10.0
-    trader.S.pos.entry = 0.40
-    trader.S.pos.locked = True
+    S.tokens = {"up": "TOK"}
+    S.books = {"TOK": Book(bids={0.50: 100.0})}
+    S.pos.side = "up"
+    S.pos.qty = 10.0
+    S.pos.entry = 0.40
+    S.pos.locked = True
 
-    trader.settle_position("test")
+    settle_position("test")
 
-    assert trader.S.pos.side == ""
-    assert trader.S.pos.locked is False
-    assert trader.S.pnl_session == pytest.approx(1.0)
-    assert trader.S.trades[0]["pnl"] == pytest.approx(1.0)
-    assert trader.S.trades[0]["pct"] == pytest.approx(0.25)
+    assert S.pos.side == ""
+    assert S.pos.locked is False
+    assert S.pnl_session == pytest.approx(1.0)
+    assert S.trades[0]["pnl"] == pytest.approx(1.0)
+    assert S.trades[0]["pct"] == pytest.approx(0.25)
 
 
 def test_settle_can_use_an_explicit_fill_price(S):
-    trader.S.tokens = {"up": "TOK"}
-    trader.S.books = {"TOK": trader.Book(bids={0.45: 100.0})}
-    trader.S.pos.side = "up"
-    trader.S.pos.qty = 10.0
-    trader.S.pos.entry = 0.40
+    S.tokens = {"up": "TOK"}
+    S.books = {"TOK": Book(bids={0.45: 100.0})}
+    S.pos.side = "up"
+    S.pos.qty = 10.0
+    S.pos.entry = 0.40
 
-    trader.settle_position("sold", 0.50)
+    settle_position("sold", 0.50)
 
-    assert trader.S.trades[0]["exit"] == 0.50
-    assert trader.S.pnl_session == pytest.approx(1.0)
+    assert S.trades[0]["exit"] == 0.50
+    assert S.pnl_session == pytest.approx(1.0)
 
 
 def test_a_partial_close_keeps_the_rest_open(S):
-    trader.S.tokens = {"up": "TOK"}
-    trader.S.books = {"TOK": trader.Book(bids={0.50: 100.0})}
-    trader.S.pos.side = "up"
-    trader.S.pos.qty = 10.0
-    trader.S.pos.entry = 0.40
+    S.tokens = {"up": "TOK"}
+    S.books = {"TOK": Book(bids={0.50: 100.0})}
+    S.pos.side = "up"
+    S.pos.qty = 10.0
+    S.pos.entry = 0.40
 
-    trader.settle_position("sold", 0.50, 4.0)
+    settle_position("sold", 0.50, 4.0)
 
-    assert trader.S.pos.side == "up"
-    assert trader.S.pos.qty == 6.0
-    assert trader.S.trades[0]["qty"] == 4.0
-    assert trader.S.trades[0]["pnl"] == pytest.approx(0.4)
+    assert S.pos.side == "up"
+    assert S.pos.qty == 6.0
+    assert S.trades[0]["qty"] == 4.0
+    assert S.trades[0]["pnl"] == pytest.approx(0.4)
 
-    trader.settle_position("sold", 0.50, 6.0)
+    settle_position("sold", 0.50, 6.0)
 
-    assert trader.S.pos.side == ""
-    assert len(trader.S.trades) == 2
+    assert S.pos.side == ""
+    assert len(S.trades) == 2
 
 
 def test_secs_left_counts_down_from_the_window_open(S):
     import time
 
-    trader.S.ws_start = int(time.time()) - 60
-    left = trader.secs_left()
+    S.ws_start = int(time.time()) - 60
+    left = secs_left()
     assert 239 <= left <= 240.5
 
-    trader.S.ws_start = 0
-    assert trader.secs_left() == 0.0
+    S.ws_start = 0
+    assert secs_left() == 0.0

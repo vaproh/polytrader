@@ -8,15 +8,15 @@ sync:
 
 # paper mode: live data, simulated fills
 paper:
-    uv run python trader.py
+    uv run polytrader
 
 # check creds, tick size and price bound; nothing is signed or sent
 dry:
-    uv run python trader.py --dry
+    uv run polytrader --dry
 
 # real orders
 live stake="5":
-    uv run python trader.py --live --stake {{stake}}
+    uv run polytrader --live --stake {{stake}}
 
 # offline suite: no credentials, no network
 test:
@@ -24,11 +24,12 @@ test:
 
 # print the signer derived from PK and the USDC balance
 doctor:
-    uv run python execution.py
+    uv run polytrader-doctor
 
-# byte-compile everything
+# byte-compile the package
 check:
-    uv run python -m py_compile trader.py execution.py pm_tools.py
+    uv run python -m compileall -q src
 
 clean:
-    rm -rf .venv .pytest_cache __pycache__ tests/__pycache__
+    rm -rf .venv .pytest_cache
+    find . -name __pycache__ -type d -prune -exec rm -rf {} +

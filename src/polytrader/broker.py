@@ -1,11 +1,10 @@
-#!/usr/bin/env python3
-"""
-execution.py -- real order placement for trader.py. Opt-in only.
+"""Live order placement. Opt-in only.
 
-NOTHING here runs unless trader.py is launched with --live AND a key is present.
-Paper mode never imports this module's broker.
+NOTHING here runs unless the terminal is launched with --live AND a key is
+present. Paper mode never imports this module's broker.
 
-Credentials come from the environment (or a .env next to this file):
+Credentials come from the environment (or a .env in the working directory or
+the project root):
 
     PK                 wallet private key that SIGNS the orders   (required)
     POLY_FUNDER        proxy/funder address that HOLDS the funds  (optional)
@@ -25,6 +24,7 @@ from __future__ import annotations
 
 import os
 from decimal import ROUND_HALF_UP, Decimal
+from pathlib import Path
 
 MAX_USDC_DEFAULT = 0.0   # 0 means no cap
 SLIPPAGE_TICKS = 1
@@ -44,15 +44,19 @@ def _snap(price: float, tick: float) -> float:
 
 
 def _load_dotenv():
-    """Read a .env beside this file without needing python-dotenv."""
-    p = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env")
-    if not os.path.isfile(p):
+    """Read a .env from the working directory or the project root."""
+    here = Path(__file__).resolve()
+    bases = [Path.cwd()]
+    if len(here.parents) > 2:
+        bases.append(here.parents[2])
+    path = next((b / ".env" for b in bases if (b / ".env").is_file()), None)
+    if path is None:
         return
     try:
-        os.chmod(p, 0o600)
+        os.chmod(path, 0o600)
     except OSError:
         pass
-    for line in open(p):
+    for line in open(path):
         line = line.strip()
         if not line or line.startswith("#") or "=" not in line:
             continue
@@ -245,7 +249,3 @@ def doctor():
         print("usdc   :", "unknown" if bal is None else f"${bal:.2f}")
         print("max/ord:", "no cap" if b.max_usdc <= 0 else f"${b.max_usdc:.2f}")
     return 0 if b.ok else 1
-
-
-if __name__ == "__main__":
-    raise SystemExit(doctor())
