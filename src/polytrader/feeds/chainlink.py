@@ -123,11 +123,19 @@ def fetch(ws, timeout=5.0):
 
 
 def apply(ws, data):
-    """Publish a fetch result, but only if it belongs to the current window."""
+    """Publish a fetch result, but only if it belongs to the current window.
+
+    The endpoint is eventually consistent: consecutive responses can go
+    backward in time, so a point older than the published one is dropped
+    instead of moving the display back.
+    """
     if not data or S.ws_start != ws:
+        return False
+    if data["ts"] < S.twap_data_ts:
         return False
     S.strike = data["beat"]
     S.twap = data["now"]
+    S.twap_data_ts = data["ts"]
     S.twap_ts = time.time()
     S.twap_src = "chainlink"
     return True

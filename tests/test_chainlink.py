@@ -63,3 +63,15 @@ def test_apply_publishes_only_for_the_current_window(S):
     S.ws_start = 43
     assert not chainlink.apply(42, {"beat": 1.0, "now": 2.0, "ts": 1.0})
     assert S.strike == pytest.approx(100.0)
+
+
+def test_apply_drops_points_older_than_the_published_one(S):
+    S.ws_start = 42
+
+    assert chainlink.apply(42, {"beat": 100.0, "now": 101.0, "ts": 60.0})
+    assert not chainlink.apply(42, {"beat": 99.0, "now": 50.0, "ts": 30.0})
+    assert S.twap == pytest.approx(101.0)
+    assert S.strike == pytest.approx(100.0)
+
+    assert chainlink.apply(42, {"beat": 100.0, "now": 102.0, "ts": 60.0})
+    assert S.twap == pytest.approx(102.0)

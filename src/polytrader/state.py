@@ -117,6 +117,7 @@ class State:
         self.bell_pending = False  # engine asks, refresh_view rings
         self.flash_until = 0.0    # status line highlights a fresh close
         self.book_ts = 0.0        # last CLOB message or REST book fill
+        self.twap_data_ts = 0.0  # newest published TWAP point (monotonic)
 
 
 S = State()
