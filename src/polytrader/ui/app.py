@@ -11,8 +11,9 @@ from textual.widgets import Footer, Header, Static
 
 from ..config import PRESETS, save_cfg
 from ..detector import (btc_state, fair_p, gate_checks, recompute_detector,
-                        rsi_last, vol_window, warnings)
+                        rsi_last, twap60, vol_window, warnings)
 from ..engine import exit_decision, settle_position
+from ..feeds.basis import basis_loop
 from ..feeds.binance import binance_loop, fetch_klines
 from ..feeds.clob import clob_loop, rest_fallback_loop
 from ..feeds.window import window_loop
@@ -77,6 +78,7 @@ class TraderApp(App):
         asyncio.create_task(binance_loop())
         asyncio.create_task(window_loop())
         asyncio.create_task(rest_fallback_loop())
+        asyncio.create_task(basis_loop())
         await asyncio.sleep(1.5)
         asyncio.create_task(clob_loop())
 
@@ -316,6 +318,8 @@ class TraderApp(App):
             return
         if not S.paused:
             recompute_detector()
+            tx = twap60(min_samples=30)
+            S.twap = (tx * S.usdt_usd) if tx else 0.0
 
         # top
         btc = S.btc
@@ -339,6 +343,8 @@ class TraderApp(App):
         if st is not None:
             t.append("\nBTC ", style="dim")
             t.append(f"{st['dist']:+.2f}", style=("green" if st["dist"] >= 0 else "red"))
+            if S.twap:
+                t.append(f"  twap ${S.twap:,.2f}", style="dim")
             t.append(f"  z {st['z']:+.2f}sd", style="dim")
             t.append(f"  vol {st['sig']*1e4:.2f}bp/s", style="dim")
             t.append(f"  travel ${st['travel']:.0f}", style="dim")

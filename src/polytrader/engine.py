@@ -4,6 +4,7 @@ from __future__ import annotations
 import time
 
 from .config import PRESETS
+from .detector import twap60
 from .state import S, mark_price
 
 
@@ -44,7 +45,13 @@ def roll_to_window(ws, toks, px=None):
     S.tokens = toks
     S.slug = f"btc-updown-5m-{ws}"
     S.ws_start = ws
-    S.strike = S.btc or (S.klines[-1] if S.klines else 0.0)
+    # Resolution compares 60s Chainlink TWAPs, so the opening reference is the
+    # 60s mean ending at the boundary, converted from USDT to USD. Spot is the
+    # fallback when the feed has not been up long enough to average.
+    tx = twap60(now=ws, min_samples=30)
+    S.strike = ((tx * S.usdt_usd) if tx
+                else (S.btc or (S.klines[-1] if S.klines else 0.0)))
+    S.twap = S.strike
     S.mid_hist.clear()
     S.books.clear()
     S.msg = f"window {ws}"

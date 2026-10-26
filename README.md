@@ -57,13 +57,17 @@ rather than printed as if reachable.
 
 ## 2. Resolution mechanics
 
-Chainlink **BTC/USD 60-second TWAP averaged across the window** vs the
-window-open price, not the final tick. An early move keeps counting even if
-spot reverts; a late spike barely moves it.
+Polymarket resolves against the **Chainlink BTC/USD 60-second TWAP**. The TWAP
+at the window open sets the **price to beat**, and the TWAP at the close sets
+the **final price**; Up wins when final is greater than or equal to beat. It is
+two 60-second lookbacks, not a five-minute average.
 
-Chainlink is a **USD** index, Binance quotes USDT, so levels need
-`× USDT/USD` (measured 0.998730) or you carry a **$114** phantom basis at 80k.
-Ratios need no adjustment.
+Chainlink is a **USD** index and Binance quotes USDT, so the terminal takes the
+60-second mean of its own BTC ticks and multiplies by **USDT/USD** (Kraken,
+refreshed once a minute). Measured against Polymarket's published values over
+24 windows, that lands within **$3.73 on average and $10.56 worst**; unadjusted
+it is off by about $125. With credentials, `CryptoTwapPriceSpec` from
+`polymarket-client` is the exact feed and replaces the proxy.
 
 Slug: `btc-updown-5m-<windowStartUnixTs>`, window = `ts .. ts+300`.
 
@@ -73,6 +77,8 @@ Slug: `btc-updown-5m-<windowStartUnixTs>`, window = `ts .. ts+300`.
 
 ```
 Binance aggTrade WS ──► S.btc, btc_hist, trade_hist (buy/sell volume, CVD)
+                              │
+                     60s mean × USDT/USD ──► S.twap, strike
 Polymarket CLOB WS  ──► S.books (tick-exact: every message mutates the book)
                               │
                      250ms bucket (tick overwrites current bucket)
@@ -176,6 +182,9 @@ at `_make_client`, so they never place an order or read a key.
   on a binary contract. Worst case stays near −95% at any width.
 - One position at a time. Quitting with a live position leaves it open in your
   wallet with no tracker.
+- The strike is a proxy: Binance 60s mean times USDT/USD, within $3.73 on
+  average and $10.56 worst over the 24 windows measured. Near the money that can
+  move fair value by a few points. The exact Chainlink stream needs credentials.
 - `POLY_MAX_USDC` is off unless you set it.
 
 ---
@@ -203,6 +212,8 @@ at `_make_client`, so they never place an order or read a key.
 | `wss://ws-subscriptions-clob.polymarket.com/ws/market` | book, price_change, last_trade_price |
 | `gamma-api.polymarket.com/markets?slug=` | token IDs for the current window |
 | `clob.polymarket.com/book?token_id=` | REST fallback when the socket is quiet |
+| `api.kraken.com/0/public/Ticker?pair=USDTZUSD` | USDT/USD basis, refreshed once a minute |
+| Polymarket `prices.crypto.twap` | exact Chainlink 60s TWAP, optional, needs `AsyncSecureClient` |
 
 Closed markets need `&closed=true` on the gamma `markets?slug=` query.
 

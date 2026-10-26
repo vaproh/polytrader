@@ -107,14 +107,16 @@ def vol_window(sec):
     return b, sv, int(n)
 
 
-def twap60(hist=None, seconds=60.0, now=None):
+def twap60(hist=None, seconds=60.0, now=None, min_samples=1):
     """Mean price over the last `seconds`; the window resolution statistic."""
     pts = S.btc_hist if hist is None else hist
     if not pts:
         return None
     end = pts[-1][0] if now is None else now
-    vals = [p for t, p in pts if t >= end - seconds and p > 0]
-    return sum(vals) / len(vals) if vals else None
+    vals = [p for t, p in pts if end - seconds <= t <= end and p > 0]
+    if len(vals) < min_samples:
+        return None
+    return sum(vals) / len(vals)
 
 
 def warnings():
@@ -293,15 +295,16 @@ def btc_sigma(lookback=120.0):
 def btc_state():
     """Everything the window depends on, expressed in BTC terms."""
     sig = btc_sigma()
-    if sig is None or not S.strike or S.btc <= 0:
+    px = S.twap or S.btc
+    if sig is None or not S.strike or px <= 0:
         return None
     left = max(1.0, secs_left())
-    dist = S.btc - S.strike
+    dist = px - S.strike
     # how many standard deviations of expected travel away from the strike
     move_sd = sig * np.sqrt(left)
-    z = float(np.log(S.btc / S.strike) / move_sd) if move_sd > 0 else 0.0
+    z = float(np.log(px / S.strike) / move_sd) if move_sd > 0 else 0.0
     # expected absolute travel over the remaining time, in dollars
-    travel = S.btc * move_sd
+    travel = px * move_sd
     # momentum over the last 30s / 60s of ticks
     now = S.btc_hist[-1][0] if S.btc_hist else 0
 
@@ -329,7 +332,8 @@ def fair_p():
     fair-value readout: what the window is worth if BTC behaves like a
     random walk with recent volatility.
     """
-    if not S.strike or S.btc <= 0 or len(S.klines) < 20:
+    px = S.twap or S.btc
+    if not S.strike or px <= 0 or len(S.klines) < 20:
         return None
     st = btc_state()
     if st is None:
@@ -337,7 +341,7 @@ def fair_p():
     sig = st["sig"]
     left = max(1.0, secs_left())
     try:
-        z = float(np.log(S.btc / S.strike) / (sig * np.sqrt(left)))
+        z = float(np.log(px / S.strike) / (sig * np.sqrt(left)))
     except (ValueError, ZeroDivisionError):
         return None
     return 0.5 * (1.0 + math.erf(z / math.sqrt(2.0)))
