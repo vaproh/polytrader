@@ -137,12 +137,12 @@ def test_trades_show_the_close_reason(S):
     assert "sold" in text
 
 
-def test_window_shows_tick_arrows_with_dollar_moves(S):
+def test_window_shows_candle_moves_with_dollar_amounts(S):
     S.strike = 80000.0
     S.twap = 80130.58
-    S.prev_twap = 80125.00
+    S.twap_open = 80125.00
     S.btc = 80327.93
-    S.prev_btc = 80330.00
+    S.candle_open = 80330.00
 
     text = panels.make_window_text().plain
 
@@ -150,16 +150,30 @@ def test_window_shows_tick_arrows_with_dollar_moves(S):
     assert "▼ -2.07" in text
 
 
-def test_window_hides_arrows_on_first_paint(S):
+def test_window_hides_arrows_before_the_first_tick(S):
     S.strike = 80000.0
     S.twap = 80130.58
-    S.prev_twap = 0.0
+    S.twap_open = 0.0
     S.btc = 80327.93
-    S.prev_btc = 0.0
+    S.candle_open = 0.0
 
     text = panels.make_window_text().plain
 
     assert "▲" not in text and "▼" not in text
+
+
+def test_new_minute_opens_a_fresh_candle(S):
+    from polytrader.feeds.binance import on_price_tick
+
+    S.klines = [80000.0]
+    S.bar_ts = 100
+    S.btc = 80000.0
+    S.twap = 79950.0
+
+    on_price_tick(80100.0, now=101 * 60)
+
+    assert S.candle_open == 80100.0
+    assert S.twap_open == 79950.0
 
 
 def test_refresh_next_stores_tokens_and_books(S, monkeypatch):
