@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import time
+from datetime import datetime
 
 from rich.text import Text
 
@@ -438,6 +439,14 @@ def _trade_row(t, tr):
     t.append("\n")
 
 
+def _day_label(day):
+    """'2026-10-26' -> 'Mon Oct 26'. Unparseable days pass through."""
+    try:
+        return datetime.strptime(day, "%Y-%m-%d").strftime("%a %b %d")
+    except Exception:
+        return day
+
+
 def make_trades_text():
     t = Text()
     if S.history_mode:
@@ -446,17 +455,36 @@ def make_trades_text():
         t.append(f"ALL-TIME {len(rows)} trades  P&L ${pnl:+.2f}",
                  style="bold green" if pnl >= 0 else "bold red")
         t.append("   h session · J/K scroll\n", style="dim")
-        for tr in rows[:100]:
-            _trade_row(t, tr)
-        if len(rows) > 100:
-            t.append(f"   ... {len(rows) - 100} older (file keeps 2000)",
+        groups: dict[str, list] = {}
+        for tr in rows:
+            groups.setdefault(tr.get("day") or "earlier", []).append(tr)
+        days = sorted((d for d in groups if d != "earlier"), reverse=True)
+        if "earlier" in groups:
+            days.append("earlier")  # rows stamped before days existed
+        shown = 0
+        for day in days:
+            if shown >= 100:
+                break
+            drows = groups[day]
+            dpnl = sum(r.get("pnl", 0.0) for r in drows)
+            label = _day_label(day) if day != "earlier" else "earlier"
+            t.append(f"{label} · {len(drows)} trades · ${dpnl:+.2f}\n",
+                     style="bold")
+            for tr in drows:
+                if shown >= 100:
+                    break
+                _trade_row(t, tr)
+                shown += 1
+        if len(rows) > shown:
+            t.append(f"   ... {len(rows) - shown} older (file keeps 2000)",
                      style="dim")
         return t
     if not S.trades:
         t.append("no trades yet -- u buy UP, d buy DOWN", style="dim")
         t.append("\n   h all-time history", style="dim")
         return t
-    t.append(f"SESSION {len(S.trades)} trades  P&L ${S.pnl_session:+.2f}",
+    t.append(f"SESSION {_day_label(time.strftime('%Y-%m-%d'))} · "
+             f"{len(S.trades)} trades  P&L ${S.pnl_session:+.2f}",
              style="bold green" if S.pnl_session >= 0 else "bold red")
     t.append("   h all-time · J/K scroll\n", style="dim")
     for tr in S.trades[:12]:

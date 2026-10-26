@@ -62,8 +62,9 @@ def settle_position(reason="", px=None, qty=None):
     tr = {"side": S.pos.side, "entry": S.pos.entry, "exit": px,
           "qty": q, "pnl": pnl,
           "pct": (px / S.pos.entry - 1) if S.pos.entry else 0.0,
-          "ts": time.strftime("%I:%M:%S %p").lstrip("0"), "reason": reason,
-          "mode": "L" if S.live else "P"}
+          "ts": time.strftime("%I:%M:%S %p").lstrip("0"),
+          "day": time.strftime("%Y-%m-%d"),
+          "reason": reason, "mode": "L" if S.live else "P"}
     S.trades.insert(0, tr)
     del S.trades[200:]
     record_trade(tr)

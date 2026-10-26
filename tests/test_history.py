@@ -24,6 +24,7 @@ def test_settle_stamps_am_pm_time(S):
     settle_position("test")
 
     assert re.fullmatch(r"\d{1,2}:\d{2}:\d{2} [AP]M", S.trades[0]["ts"])
+    assert re.fullmatch(r"\d{4}-\d{2}-\d{2}", S.trades[0]["day"])
 
 
 def test_settle_appends_each_close_to_the_history_file(S, tmp_path, monkeypatch):
@@ -70,7 +71,8 @@ def test_session_log_header_shows_count_and_pnl(S):
 
     text = panels.make_trades_text().plain
 
-    assert "SESSION 2 trades" in text
+    assert "SESSION " in text
+    assert "2 trades" in text
     assert "P&L $+0.90" in text
 
 
@@ -91,6 +93,34 @@ def test_history_mode_merges_past_runs_with_combined_pnl(S):
     assert "ALL-TIME 2 trades" in text
     assert "P&L $+3.40" in text
     assert "8:01:00 PM" in text
+
+
+def test_history_groups_trades_per_day_with_day_pnl(S):
+    S.trades = []
+    S.pnl_session = 0.0
+    S.history = [
+        {"ts": "9:02:11 PM", "day": "2026-10-26", "side": "up",
+         "entry": 0.36, "exit": 0.50, "qty": 10.0, "pnl": 1.40,
+         "pct": 0.389, "reason": "sold"},
+        {"ts": "8:01:00 PM", "day": "2026-10-25", "side": "dn",
+         "entry": 0.40, "exit": 0.60, "qty": 10.0, "pnl": 2.00,
+         "pct": 0.50, "reason": "sold"},
+        {"ts": "7:00:00 PM", "side": "up",
+         "entry": 0.40, "exit": 0.45, "qty": 10.0, "pnl": 0.50,
+         "pct": 0.125, "reason": "sold"},
+    ]
+    S.history_mode = True
+
+    text = panels.make_trades_text().plain
+
+    assert "Mon Oct 26" in text
+    assert "Sun Oct 25" in text
+    assert "earlier" in text
+    # newest day first, dateless rows last
+    assert text.index("Mon Oct 26") < text.index("Sun Oct 25")
+    assert text.index("Sun Oct 25") < text.index("earlier")
+    assert "1 trades · $+1.40" in text
+    assert "1 trades · $+2.00" in text
 
 
 def test_h_key_toggles_session_and_all_time(S, monkeypatch):
