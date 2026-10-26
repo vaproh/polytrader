@@ -125,20 +125,32 @@ refuses and prints why.
 
 ## 4. Reading the screen
 
-Six panels, top to bottom:
+Seven panels, top to bottom:
 
 | panel | meaning |
 |---|---|
-| **top** | BTC spot, 60s TWAP, session %, mode, stake, status; distance to strike, z-score, tick vol, travel, 30s/60s move; fair value vs market ask; RSI(14) and a sparkline |
-| **books** | both outcome tokens, best bid/ask, size, depth within 3c, pair sum |
-| **regime** | detected state with travel, efficiency, net, reversals, drift |
-| **pos** | side, size, entry, mark, P&L, stop and TP prices, session P&L, win rate |
+| **status** | BTC spot with the price to beat and the dollar/percent distance, session %, mode, stake, pause, last action |
+| **window** | window slug, countdown, price to beat, 60s TWAP now with UP/DOWN and distance, spot vs beat, resolution rule |
+| **books** | both outcome tokens, best bid/ask with size, depth within 3c, pair bid/ask and overround |
+| **signal** | detected regime, fair P(up) vs market ask, base rates, z-score, tick vol, travel, 30s/60s move, RSI(14), gate checks |
+| **pos** | side, size, entry, mark, P&L, stop and TP prices, session P&L, win rate, preset |
 | **alerts** | mechanical warnings: RSI extremes, volume surge, aggressor split, CVD, divergence, vol expansion, streaks, EMA200, MACD, Bollinger squeeze |
-| **stats** | base rates for the detected regime and the old gate rules, one PASS/FAIL each |
+| **trades** | closed trades with entry/exit, percent, P&L, and the close reason |
+
+The resolution reference is the **60s TWAP at the close**, not spot. The window
+panel shows both: `TWAP NOW` decides UP/DOWN against the beat, and `SPOT` is
+context only. The status line also puts the beat next to the BTC price so the
+cash distance is visible without reading the window panel.
 
 First ~31 seconds of each window show `WARMUP`: the detector needs about 31 s
 of book history before it names a regime. A brand-new window also has an empty book for
 ~8 s, which is real, not a bug.
+
+RSI(14) uses the one-minute close series. Until 15 closes exist the panel shows
+`RSI -- (n/15 bars)`, never a fake 50. If the startup REST seed fails, it retries
+every 30 s while the series is short. Once warm, the RSI is printed to one
+decimal: a 14-period RSI on 1-minute bars moves slowly on purpose, so it will
+not jump around like a tick indicator.
 
 **Base rates are frequencies, not a recommendation.** They are measured on a
 250 ms order-book capture and conditioned on the current regime. A positive mean

@@ -363,9 +363,9 @@ def gate_checks():
     px = bu.best_ask() if bu else None
     sl = secs_left()
     return [
-        ("vol", tr >= 0.40, "—" if tr != tr else f"{tr:.2f}"),
-        ("eff", ef < 0.35, "—" if ef != ef else f"{ef:.2f}"),
-        ("drift", dr <= 0.02, "—" if dr != dr else f"{dr*100:+.0f}%"),
-        ("px", px is not None and 0.03 <= px <= 0.95, "—" if px is None else f"{px:.2f}"),
+        ("vol", tr >= 0.40, "--" if tr != tr else f"{tr:.2f}"),
+        ("eff", ef < 0.35, "--" if ef != ef else f"{ef:.2f}"),
+        ("drift", dr <= 0.02, "--" if dr != dr else f"{dr*100:+.0f}%"),
+        ("px", px is not None and 0.03 <= px <= 0.95, "--" if px is None else f"{px:.2f}"),
         ("secs", 40 <= sl <= 250, f"{sl:.0f}s"),
     ]

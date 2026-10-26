@@ -22,7 +22,7 @@ def settle_position(reason="", px=None, qty=None):
     S.trades.insert(0, {"side": S.pos.side, "entry": S.pos.entry, "exit": px,
                         "qty": q, "pnl": pnl,
                         "pct": (px / S.pos.entry - 1) if S.pos.entry else 0.0,
-                        "ts": time.strftime("%H:%M:%S")})
+                        "ts": time.strftime("%H:%M:%S"), "reason": reason})
     del S.trades[200:]
     S.pos.qty -= q
     if S.pos.qty <= 1e-9:
