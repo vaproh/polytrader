@@ -381,6 +381,86 @@ def test_exits_toggle_disables_tp_and_stop_together(S):
     assert S.tp_on is True
 
 
+def test_arm_queues_the_next_window(S):
+    from polytrader.ui.app import TraderApp
+
+    app = object.__new__(TraderApp)
+    S.ws_start = 1793035800
+
+    TraderApp.action_arm(app, "up")
+    assert S.armed == "up"
+    assert S.armed_ws == 1793036100
+
+    TraderApp.action_arm(app, "up")
+    assert S.armed == ""
+    assert S.armed_ws == 0
+
+
+def test_armed_entry_dies_with_its_window(S):
+    from polytrader.ui.app import TraderApp
+
+    app = object.__new__(TraderApp)
+    S.armed = "up"
+    S.armed_ws = 1793035800
+    S.ws_start = 1793036100
+
+    TraderApp.maybe_fire_armed(app)
+
+    assert S.armed == ""
+
+
+def test_manual_buy_replaces_an_armed_entry(S):
+    import time
+
+    from polytrader.ui.app import TraderApp
+
+    app = object.__new__(TraderApp)
+    S.stake = 5.0
+    S.tokens = {"up": "TOK"}
+    S.books = {"TOK": Book(asks={0.40: 100.0})}
+    S.ws_start = int(time.time())
+    S.armed = "dn"
+    S.armed_ws = S.ws_start + 300
+
+    TraderApp.action_buy(app, "up")
+
+    assert S.pos.side == "up"
+    assert S.armed == ""
+
+
+def test_armed_entry_fires_after_the_open(S, monkeypatch):
+    import time
+
+    from polytrader.ui import app as ui
+
+    async def noop(*_a, **_k):
+        return None
+
+    for name in ("binance_loop", "window_loop", "chainlink_loop",
+                 "rest_fallback_loop", "basis_loop", "clob_loop"):
+        monkeypatch.setattr(ui, name, noop)
+    monkeypatch.setattr(ui, "fetch_klines", lambda: [])
+    S.stake = 5.0
+    S.tokens = {"up": "TOK"}
+    S.books = {"TOK": Book(asks={0.40: 100.0})}
+    S.ws_start = int(time.time()) - 10
+    S.armed = "up"
+    S.armed_ws = S.ws_start
+
+    app = ui.TraderApp()
+
+    async def go():
+        async with app.run_test() as pilot:
+            await pilot.pause()
+            await pilot.pause()
+
+    asyncio.run(go())
+
+    assert S.pos.side == "up"
+    assert S.pos.entry == pytest.approx(0.40)
+    assert S.armed == ""
+
+
 def test_position_panel_shows_exits_off(S):
     from polytrader.state import Book
 

@@ -83,6 +83,8 @@ class State:
         self.ws_connected = False
         self.stop_on = True
         self.tp_on = True  # T toggles both exits; k toggles the stop alone
+        self.armed = ""  # U/D: side queued for the next window, "" = none
+        self.armed_ws = 0  # the window the armed buy belongs to
         self.cvd = 0.0
         self.cvd_hist = deque(maxlen=4000)
         self.trade_hist = deque(maxlen=20000)

@@ -36,8 +36,9 @@ wallet first. Otherwise orders fail on allowance, not balance.
 
 | key | action | | key | action |
 |---|---|---|---|---|
-| `u` / `d` | buy UP / DOWN at ask | | `1`-`9` | stake $1-9 |
-| `s` | sell at bid | | `a` | custom dollar amount |
+| `u` / `d` | buy UP / DOWN at ask | | `U` / `D` | arm UP / DOWN for next window |
+| `s` | sell at bid | | `1`-`9` | stake $1-9 |
+| | | | `a` | custom dollar amount |
 | `p` | pause detector | | `[` `]` | preset prev/next |
 | `r` | reload window | | `k` | stop arm/disarm |
 | `q` | quit | | `T` | exits (tp+stop) on/off |
