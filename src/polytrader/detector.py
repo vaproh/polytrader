@@ -238,24 +238,33 @@ def warnings():
 
 
 def rsi_fast(period=14, bucket=5.0):
-    """Second-scale RSI over 5s closes from the tick tape.
+    """Second-scale RSI over N-second closes from the tick tape.
 
     RSI(1m) barely moves inside a bar; a 5-minute window needs momentum that
-    updates every paint. None until ~80s of ticks exist.
+    updates every paint. bucket=1.0 reads the tape second by second. Walks the
+    tape newest-first and stops after enough buckets, so the 10 Hz repaint
+    costs hundreds of ticks, not the whole 30k buffer. None until
+    (period+1)*bucket seconds of ticks exist.
     """
     if not S.btc_hist:
         return None
     now = S.btc_hist[-1][0]
     n = period + 1
-    lo = now - n * bucket
-    buckets = {}
-    for t, p in S.btc_hist:
-        if t >= lo:
-            buckets[int(t // bucket)] = p
-    keys = sorted(buckets)
-    if len(keys) < n:
+    closes = []
+    cur_bi = None
+    for t, p in reversed(S.btc_hist):
+        if t < now - n * bucket:
+            break
+        bi = int(t // bucket)
+        if bi == cur_bi:
+            continue
+        cur_bi = bi
+        closes.append(p)  # newest tick of the bucket = its close
+        if len(closes) >= n:
+            break
+    if len(closes) < n:
         return None
-    return rsi_last([buckets[k] for k in keys[-n:]], period)
+    return rsi_last(closes[::-1], period)
 
 
 def rsi_series_py(c, n=14):
