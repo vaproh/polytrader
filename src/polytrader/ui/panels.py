@@ -181,7 +181,9 @@ def make_window_text():
         t.append(f"${S.twap:,.2f}", style="white")
         t.append(f"   {gap:+,.2f}  {pct:+.2f}%", style=_sign_style(gap))
         t.append(f"   {'UP' if gap >= 0 else 'DOWN'}", style=f"bold {_sign_style(gap)}")
-        arrow = _tick_arrow(S.twap, S.twap_open)
+        topen = (S.twap_open if S.twap_open_bar == int(time.time() // 60)
+                 and S.twap_src == "chainlink" else 0.0)
+        arrow = _tick_arrow(S.twap, topen)
         if arrow:
             t.append(f"   {arrow[1]}", style=arrow[0])
     else:

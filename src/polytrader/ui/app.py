@@ -19,7 +19,7 @@ from ..feeds.binance import binance_loop, fetch_klines
 from ..feeds.chainlink import chainlink_loop
 from ..feeds.clob import clob_loop, rest_fallback_loop
 from ..feeds.window import _early_roll, window_loop
-from ..state import S, cur_book, mark_price, secs_left
+from ..state import S, cur_book, latch_twap_open, mark_price, secs_left
 from .panels import (make_alerts_text, make_books_text, make_position_text,
                      make_signal_text, make_status_text, make_trades_text,
                      make_window_text)
@@ -646,6 +646,7 @@ class TraderApp(App):
             if tx:
                 S.twap = tx * S.usdt_usd
                 S.twap_src = "proxy"
+        latch_twap_open()
         if not S.paused:
             recompute_detector()
 

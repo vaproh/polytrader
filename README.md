@@ -159,7 +159,7 @@ Seven panels, top to bottom:
 | panel | meaning |
 |---|---|
 | **status** | BTC spot, price to beat and source, current TWAP with UP/DOWN and dollar/percent distance, session %, mode, cash/order/after/cap, stake, pause, last action |
-| **window** | window slug, countdown and progress bar, price to beat and source, 60s TWAP now with UP/DOWN and its move since the minute opened, Binance spot as context with its 1-minute candle move, resolution rule |
+| **window** | window slug, countdown and progress bar, price to beat and source, 60s TWAP now with UP/DOWN and its move since the first exact print of the minute, Binance spot with its 1-minute candle move, resolution rule |
 | **books** | both outcome tokens, best bid/ask with size, depth within 3c, shares the stake buys, pair bid/ask and overround, fresh/stale quote age, plus the next window's countdown and book preview |
 | **signal** | detected regime, fair P(up) vs market ask, token bid base rates, z-score, tick vol, travel, 30s/60s move, RSI(1m) 6/12/14/24 plus a per-second RSI(5s), gate checks |
 | **alerts** | mechanical warnings: RSI extremes, volume surge, aggressor split, CVD, divergence, vol expansion, streaks, EMA200, MACD, Bollinger squeeze |
