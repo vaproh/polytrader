@@ -163,7 +163,7 @@ Seven panels, top to bottom:
 | **signal** | detected regime, fair P(up) vs market ask, token bid base rates, z-score, tick vol, travel, 30s/60s move, RSI(1m) 6/12/14/24, gate checks |
 | **alerts** | mechanical warnings: RSI extremes, volume surge, aggressor split, CVD, divergence, vol expansion, streaks, EMA200, MACD, Bollinger squeeze |
 | **pos** | side, size, cost, value, pays-on-win, entry, mark, P&L, stop and TP prices, session P&L, win rate, preset |
-| **log** | closed trades with AM/PM stamp, entry/exit, percent, P&L, L/P mode, and the close reason; `h` switches session/all-time with counts and both P&Ls |
+| **log** | closed trades with AM/PM stamp, entry/exit, percent, P&L, L/P mode, and the close reason; `h` switches session/all-time with counts and both P&Ls, grouped per day |
 
 The resolution reference is the **60s TWAP at the close**, not spot. The window
 panel shows both: `TWAP NOW` decides UP/DOWN against the beat, and `SPOT
