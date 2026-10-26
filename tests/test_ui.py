@@ -1,10 +1,16 @@
 """The panels must show the resolution reference, not just a distance."""
 from __future__ import annotations
 
+import asyncio
 import time
+
+import pytest
+from textual.app import App
+from textual.widgets import Input
 
 from polytrader.state import Book
 from polytrader.ui import panels
+from polytrader.ui.app import AmountScreen, parse_amount
 
 
 def test_status_puts_the_beat_next_to_spot(S):
@@ -147,3 +153,118 @@ def test_alerts_label_cumulative_cvd_as_session(S):
     text = panels.make_alerts_text().plain
 
     assert "CVD session +146.6" in text
+
+
+def test_parse_amount_accepts_dollars_and_commas():
+    assert parse_amount("$1,234.5") == 1234.5
+    assert parse_amount(" 12.346 ") == 12.35
+
+
+@pytest.mark.parametrize("raw", ["", "abc", "0", "-5", "1e9"])
+def test_parse_amount_rejects_bad_amounts(raw):
+    with pytest.raises(ValueError):
+        parse_amount(raw)
+
+
+def test_status_shows_cash_order_and_after(S):
+    S.live = True
+    S.balance = 100.0
+    S.stake = 12.34
+    S.funder = "0x1234567890"
+
+    text = panels.make_status_text().plain
+
+    assert "CASH $100.00" in text
+    assert "ORDER $12.34" in text
+    assert "AFTER $87.66" in text
+
+
+def test_status_in_paper_does_not_claim_a_cash_balance(S):
+    S.live = False
+
+    text = panels.make_status_text().plain
+
+    assert "CASH -- (paper)" in text
+
+
+def test_books_show_the_shares_the_stake_buys(S):
+    S.stake = 10.0
+    S.tokens = {"up": "U", "dn": "D"}
+    S.books = {
+        "U": Book(bids={0.49: 1}, asks={0.50: 1}),
+        "D": Book(bids={0.49: 1}, asks={0.50: 1}),
+    }
+
+    text = panels.make_books_text().plain
+
+    assert "$10.00 -> UP 20.0sh" in text
+    assert "DOWN 20.0sh" in text
+
+
+def test_position_shows_cost_and_value(S):
+    S.pos.side = "up"
+    S.pos.qty = 10.0
+    S.pos.entry = 0.29
+    S.pos.ts = time.time()
+    S.tokens = {"up": "U"}
+    S.books = {"U": Book(bids={0.30: 1})}
+
+    text = panels.make_position_text().plain
+
+    assert "cost $2.90" in text
+    assert "value $3.00" in text
+
+
+class _ModalHost(App):
+    def __init__(self):
+        super().__init__()
+        self.result = "not set"
+
+    def on_mount(self):
+        self.push_screen(AmountScreen(5.0), self._got)
+
+    def _got(self, value):
+        self.result = value
+
+
+def test_amount_screen_returns_a_typed_dollar_amount(S):
+    app = _ModalHost()
+
+    async def go():
+        async with app.run_test() as pilot:
+            await pilot.pause()
+            inp = app.screen.query_one("#amount-input", Input)
+            inp.value = "$12.34"
+            await pilot.press("enter")
+            await pilot.pause()
+
+    asyncio.run(go())
+
+    assert app.result == 12.34
+
+
+def test_amount_binding_sets_the_stake(S, monkeypatch):
+    from polytrader.ui import app as ui
+
+    async def noop(*_a, **_k):
+        return None
+
+    for name in ("binance_loop", "window_loop", "chainlink_loop",
+                 "rest_fallback_loop", "basis_loop", "clob_loop"):
+        monkeypatch.setattr(ui, name, noop)
+    monkeypatch.setattr(ui, "fetch_klines", lambda: [])
+
+    app = ui.TraderApp()
+
+    async def go():
+        async with app.run_test() as pilot:
+            await pilot.press("a")
+            await pilot.pause()
+            inp = app.screen.query_one("#amount-input", Input)
+            inp.value = "12.34"
+            await pilot.press("enter")
+            await pilot.pause()
+
+    asyncio.run(go())
+
+    assert S.stake == 12.34

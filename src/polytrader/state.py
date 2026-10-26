@@ -67,7 +67,7 @@ class State:
         self.trades: list[dict] = []
         self.paused = False
         self.live = False
-        self.stake = 5
+        self.stake = 5.0
         self.regime = "?"
         self.rates = {}
         self.metrics = {}
@@ -98,7 +98,12 @@ class State:
         self.cfg = load_cfg()
         if self.cfg.get("preset") in PRESETS:
             self.preset = self.cfg["preset"]
-        self.stake = int(self.cfg.get("stake", self.stake))
+        try:
+            stake = float(self.cfg.get("stake", self.stake))
+            if stake > 0:
+                self.stake = stake
+        except (TypeError, ValueError):
+            pass
         self.book_dirty = False
         self.last_book_paint = 0.0
         self.broker = None

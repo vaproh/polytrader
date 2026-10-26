@@ -14,8 +14,10 @@ def main():
     ap.add_argument("--dry", action="store_true",
                     help="checks credentials, tick size and price bound; "
                          "nothing is signed or sent")
-    ap.add_argument("--stake", type=int, default=5)
+    ap.add_argument("--stake", type=float, default=5.0)
     a = ap.parse_args()
+    if a.stake <= 0:
+        ap.error("--stake must be positive")
     S.stake = a.stake
 
     if a.live or a.dry:

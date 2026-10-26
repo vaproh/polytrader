@@ -60,6 +60,10 @@ def _sign_style(v):
     return "green" if v >= 0 else "red"
 
 
+def _usd(v):
+    return f"${v:,.2f}"
+
+
 def twap_source():
     """Which feed produced the beat/TWAP, including a stale exact value."""
     if S.twap_src == "chainlink":
@@ -95,11 +99,28 @@ def make_status_text():
         t.append(f" {S.funder[:6]}..{S.funder[-4:]}", style="dim")
         if S.balance is not None:
             t.append(f" ${S.balance:.2f}", style="green")
-    t.append(f"   stake ${S.stake}", style="yellow")
+    t.append(f"   stake {_usd(S.stake)}", style="yellow")
     if S.paused:
         t.append("   PAUSED", style="bold yellow")
     if S.msg:
         t.append(f"   last: {S.msg}", style="dim")
+
+    # cash line: account collateral and the order this stake would place
+    t.append("\nCASH ", style="dim")
+    if S.live:
+        t.append(_usd(S.balance) if S.balance is not None else "--",
+                 style="bold green")
+        t.append(f"   ORDER {_usd(S.stake)}", style="yellow")
+        if S.balance is not None:
+            left = S.balance - S.stake
+            t.append(f"   AFTER {_usd(left)}", style="red" if left < 0 else "dim")
+        cap = getattr(S.broker, "max_usdc", 0.0) if S.broker else 0.0
+        t.append(f"   cap {_usd(cap)}/order" if cap > 0 else "   cap none",
+                 style="dim")
+    else:
+        t.append("-- (paper)", style="dim")
+        t.append(f"   ORDER {_usd(S.stake)}", style="yellow")
+        t.append("   cap --", style="dim")
     return t
 
 
@@ -187,6 +208,14 @@ def make_books_text():
         b.append(f"   depth3c ${dbid * (bb or 0):>6.0f}", style="dim")
         b.append(f" / ${dask * (ba or 0):>5.0f}\n", style="dim")
 
+    if ua is not None or da is not None:
+        b.append("ORDER  ", style="bold")
+        b.append(_usd(S.stake), style="yellow")
+        if ua is not None:
+            b.append(f" -> UP {S.stake / ua:.1f}sh", style="dim")
+        if da is not None:
+            b.append(f" / DOWN {S.stake / da:.1f}sh", style="dim")
+
     return b
 
 
@@ -270,7 +299,11 @@ def make_position_text():
         pnl = (mk - S.pos.entry) * S.pos.qty if mk is not None else 0.0
         pct = (mk / S.pos.entry - 1) * 100 if mk is not None and S.pos.entry else 0.0
         st = "green" if pnl >= 0 else "red"
-        p.append(f"{S.pos.side.upper()}  {S.pos.qty:.1f} sh\n", style="bold")
+        p.append(f"{S.pos.side.upper()}  {S.pos.qty:.1f} sh", style="bold")
+        p.append(f"   cost {_usd(S.pos.entry * S.pos.qty)}", style="dim")
+        if mk is not None:
+            p.append(f"   value {_usd(mk * S.pos.qty)}", style="dim")
+        p.append("\n")
         p.append("  entry ", style="dim")
         p.append(f"{S.pos.entry:.3f}", style="white")
         p.append("   mark ", style="dim")

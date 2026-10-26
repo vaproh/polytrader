@@ -16,7 +16,7 @@ uv sync
 
 uv run polytrader              # paper, no credentials
 uv run polytrader --dry        # credential + price-bound check; nothing sent
-uv run polytrader --live       # real orders
+uv run polytrader --live --stake 12.50   # real orders, custom dollar stake
 ```
 
 `uv sync` builds `.venv` from `pyproject.toml` and `uv.lock`; every command
@@ -24,9 +24,11 @@ below runs through `uv run`. The same actions are in the `justfile`
 (`just paper`, `just dry`, `just live`, `just test`).
 
 Live needs a `.env` (see `.env.example`): `PK` (signing key), `POLY_FUNDER`
-(proxy or deposit wallet holding funds; empty if the signer holds them), and
+(account wallet holding the collateral; empty if the signer holds it), and
 optionally `POLY_MAX_USDC`. Orders go through `polymarket-client`, the official
-SDK, which derives the wallet type from the key and funder.
+SDK, which derives the wallet type from the key and funder. Polymarket now
+holds collateral as **pUSD** on Polygon; deposit USDC through the Polymarket
+UI and it is wrapped automatically. The bot does not deposit.
 
 **Allowances:** make one small manual trade on polymarket.com from the same
 wallet first. Otherwise orders fail on allowance, not balance.
@@ -34,11 +36,16 @@ wallet first. Otherwise orders fail on allowance, not balance.
 | key | action | | key | action |
 |---|---|---|---|---|
 | `u` / `d` | buy UP / DOWN at ask | | `1`-`9` | stake $1-9 |
-| `s` | sell at bid | | `o` | stake up |
-| `x` | flatten + cancel | | `[` `]` | preset prev/next |
-| `p` | pause detector | | `k` | stop arm/disarm |
-| `r` | reload window | | `L` | paper/live |
-| `q` | quit | | | |
+| `s` | sell at bid | | `a` | custom dollar amount |
+| `x` | flatten + cancel | | `o` | stake +$1 |
+| `p` | pause detector | | `[` `]` | preset prev/next |
+| `r` | reload window | | `k` | stop arm/disarm |
+| `q` | quit | | `L` | paper/live |
+
+`a` opens a prompt; the amount is saved to `~/.polytrader.json`. The status
+line shows `CASH`, the next `ORDER`, the cash `AFTER` that order, and the
+per-order cap. The books show how many shares the stake buys at each ask. In
+live mode the cash line refreshes every 10 seconds and after every fill.
 
 **Presets** (persisted to `~/.polytrader.json`):
 
@@ -131,11 +138,11 @@ Seven panels, top to bottom:
 
 | panel | meaning |
 |---|---|
-| **status** | BTC spot, price to beat and source, current TWAP with UP/DOWN and dollar/percent distance, session %, mode, stake, pause, last action |
+| **status** | BTC spot, price to beat and source, current TWAP with UP/DOWN and dollar/percent distance, session %, mode, cash/order/after/cap, stake, pause, last action |
 | **window** | window slug, countdown, price to beat and source, 60s TWAP now with UP/DOWN and distance, Binance spot as context, resolution rule |
-| **books** | both outcome tokens, best bid/ask with size, depth within 3c, pair bid/ask and overround |
+| **books** | both outcome tokens, best bid/ask with size, depth within 3c, shares the stake buys, pair bid/ask and overround |
 | **signal** | detected regime, fair P(up) vs market ask, token bid base rates, z-score, tick vol, travel, 30s/60s move, RSI(14), gate checks |
-| **pos** | side, size, entry, mark, P&L, stop and TP prices, session P&L, win rate, preset |
+| **pos** | side, size, cost, value, entry, mark, P&L, stop and TP prices, session P&L, win rate, preset |
 | **alerts** | mechanical warnings: RSI extremes, volume surge, aggressor split, CVD, divergence, vol expansion, streaks, EMA200, MACD, Bollinger squeeze |
 | **trades** | closed trades with entry/exit, percent, P&L, and the close reason |
 
@@ -196,6 +203,9 @@ at `_make_client`, so they never place an order or read a key.
   on a binary contract. Worst case stays near −95% at any width.
 - One position at a time. Quitting with a live position leaves it open in your
   wallet with no tracker.
+- The bot only tracks positions it opened. A position bought manually on
+  polymarket.com is invisible to it; `s` says `no position`. Sell that one in
+  the Polymarket UI.
 - The exact Polymarket TWAP feed can be unreachable. The terminal then falls back
   to the Binance 60s mean times USDT/USD, within $3.73 on average and $10.56
   worst over the 24 windows measured, and labels the source `proxy`. Near the

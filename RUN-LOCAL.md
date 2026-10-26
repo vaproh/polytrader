@@ -35,7 +35,7 @@ Fill in:
 | var | what |
 |---|---|
 | `PK` | the private key that signs orders |
-| `POLY_FUNDER` | the address holding the USDC. Empty means the signer holds it |
+| `POLY_FUNDER` | the account wallet holding your collateral (pUSD). Empty means the signer holds it |
 | `POLY_MAX_USDC` | optional per-order ceiling. Empty = no cap |
 
 ### Which wallet?
@@ -61,11 +61,17 @@ If they differ, set `POLY_FUNDER` to the funder.
 
 ## 4. Allowances: do this in the UI first
 
-**The bot cannot trade until USDC and the conditional-token contracts are
-approved.** The simplest way to set them: make one small manual trade on
-polymarket.com from the same wallet. That triggers the approvals.
+**The bot cannot trade until the account wallet is deployed and the collateral
+and conditional-token contracts are approved.** The simplest way: make one small
+manual trade on polymarket.com from the same wallet. That deploys a new wallet
+and triggers the approvals.
 
-If you skip this, orders fail with an allowance error, not a balance error.
+Polymarket holds collateral as **pUSD** on Polygon. Deposit USDC or USDC.e
+through the Polymarket UI or bridge; it is wrapped into pUSD automatically. The
+bot does not deposit, bridge, or swap.
+
+If you skip the manual trade, orders fail with an allowance or wallet error, not
+a balance error.
 
 ## 5. Dry run
 
@@ -74,20 +80,25 @@ bound are readable. Nothing is signed and nothing is sent, so this is a
 credential check, not a signing test. The header reads `DRY`, not `LIVE`.
 
 ```bash
-uv run polytrader --dry
+uv run polytrader --dry --stake 1
 ```
 
-You should see a `DRY buy $5.00 @<=0.43` style line after pressing `u`.
+You should see a `DRY buy $1.00 @<=0.43` style line after pressing `u`.
+The `CASH` line shows the account collateral, the next order, and the cash left.
 
 ## 6. Live
 
 ```bash
-uv run polytrader --live --stake 5
+uv run polytrader --live --stake 1
 ```
 
 The header turns **red**, shows `[LIVE]`, your truncated funder address and
-your USDC balance. If the key is missing or the client fails to initialise it
-refuses to go live and starts in paper mode with the reason printed.
+your collateral balance. The second status line shows `CASH`, the next `ORDER`,
+the cash `AFTER` that order, and the per-order cap. Cash refreshes every 10
+seconds and after each fill.
+
+If the key is missing or the client fails to initialise it refuses to go live
+and starts in paper mode with the reason printed.
 
 ## Keys
 
@@ -98,11 +109,15 @@ refuses to go live and starts in paper mode with the reason printed.
 | `s` | sell the position at the bid |
 | `x` | flatten + cancel resting orders |
 | `1`..`9` | stake $1..$9 |
-| `o` | stake up |
+| `a` | custom dollar amount |
+| `o` | stake +$1 |
 | `p` | pause the detector |
 | `r` | reload the window |
 | `L` | toggle paper / live |
 | `q` | quit |
+
+The custom amount is saved to `~/.polytrader.json` and survives a restart.
+The books show how many shares the current stake buys at each ask.
 
 ## Safety properties built in
 
@@ -136,3 +151,5 @@ they never place an order or read a key.
 - Fill price is assumed to be the displayed ask/bid. The broker reports the
   real status in the status line; it does not reconcile partial fills into P&L.
 - Selling uses a market order for the exact share count, rounded to 2dp.
+- The bot only tracks positions it opened. A position bought manually on
+  polymarket.com is invisible; `s` says `no position`. Sell it in the UI.

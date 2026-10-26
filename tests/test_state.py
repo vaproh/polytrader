@@ -186,6 +186,21 @@ def test_stake_changes_are_persisted(tmp_path, monkeypatch):
     assert config.load_cfg()["stake"] == 8
 
 
+def test_custom_stake_keeps_cents(tmp_path, monkeypatch):
+    path = tmp_path / "cfg.json"
+    monkeypatch.setattr(config, "CFG_PATH", str(path))
+    S.preset = "SCALP"
+
+    app = object.__new__(TraderApp)
+    TraderApp.action_stake(app, 12.5)
+    assert S.stake == 12.5
+    assert config.load_cfg()["stake"] == 12.5
+
+    TraderApp.action_stake_cycle(app)
+    assert S.stake == 13.5
+    assert config.load_cfg()["stake"] == 13.5
+
+
 def test_trade_log_is_capped(S):
     S.tokens = {"up": "TOK"}
     for i in range(210):
