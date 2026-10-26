@@ -123,24 +123,6 @@ def test_signal_prints_every_rsi_with_one_decimal(S):
     assert "24:100.0" in text
 
 
-def test_log_holds_the_position_and_the_trades(S):
-    S.pos.side = "up"
-    S.pos.qty = 10.0
-    S.pos.entry = 0.29
-    S.pos.ts = time.time()
-    S.tokens = {"up": "U"}
-    S.books = {"U": Book(bids={0.30: 1})}
-    S.trades = [{
-        "ts": "20:02:17", "side": "up", "entry": 0.36, "exit": 0.07,
-        "qty": 13.9, "pnl": -4.03, "pct": -0.806, "reason": "sold",
-    }]
-
-    text = panels.make_log_text().plain
-
-    assert "POSITION" in text
-    assert "sold" in text
-
-
 def test_trades_show_the_close_reason(S):
     S.trades = [{
         "ts": "20:02:17", "side": "up", "entry": 0.36, "exit": 0.07,

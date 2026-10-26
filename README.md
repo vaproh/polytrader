@@ -146,7 +146,8 @@ Seven panels, top to bottom:
 | **books** | both outcome tokens, best bid/ask with size, depth within 3c, shares the stake buys, pair bid/ask and overround |
 | **signal** | detected regime, fair P(up) vs market ask, token bid base rates, z-score, tick vol, travel, 30s/60s move, RSI(1m) 6/12/14/24, gate checks |
 | **alerts** | mechanical warnings: RSI extremes, volume surge, aggressor split, CVD, divergence, vol expansion, streaks, EMA200, MACD, Bollinger squeeze |
-| **log** | position (side, size, cost, value, entry, mark, P&L, stop/TP, session stats) then closed trades with the close reason |
+| **pos** | side, size, cost, value, entry, mark, P&L, stop and TP prices, session P&L, win rate, preset |
+| **log** | closed trades with entry/exit, percent, P&L, and the close reason |
 
 The resolution reference is the **60s TWAP at the close**, not spot. The window
 panel shows both: `TWAP NOW` decides UP/DOWN against the beat, and `SPOT

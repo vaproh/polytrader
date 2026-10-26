@@ -406,11 +406,3 @@ def make_trades_text():
             t.append(f"  {reason}", style="dim")
         t.append("\n")
     return t
-
-
-def make_log_text():
-    """Bottom panel: the position block, then the trade log."""
-    t = make_position_text()
-    t.append("\n")
-    t.append(make_trades_text())
-    return t
