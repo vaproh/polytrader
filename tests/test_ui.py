@@ -162,6 +162,56 @@ def test_window_hides_arrows_before_the_first_tick(S):
     assert "▲" not in text and "▼" not in text
 
 
+def test_next_key_needs_the_last_minute(S, monkeypatch):
+    from polytrader.ui.app import TraderApp
+
+    app = object.__new__(TraderApp)
+    W = 1793035800
+    monkeypatch.setattr(time, "time", lambda: W + 100.0)  # 200s left
+    S.ws_start = W
+
+    TraderApp.action_next_window(app)
+
+    assert S.ws_start == W
+    assert "60s" in S.msg
+
+
+def test_next_key_needs_flat(S, monkeypatch):
+    from polytrader.ui.app import TraderApp
+
+    app = object.__new__(TraderApp)
+    W = 1793035800
+    monkeypatch.setattr(time, "time", lambda: W + 250.0)  # 50s left
+    S.ws_start = W
+    S.pos.side = "up"
+    S.pos.qty = 10.0
+    S.pos.entry = 0.50
+
+    TraderApp.action_next_window(app)
+
+    assert S.ws_start == W
+    assert "flat only" in S.msg
+
+
+def test_next_key_switches_when_the_book_is_live(S, monkeypatch):
+    from polytrader.ui.app import TraderApp
+
+    app = object.__new__(TraderApp)
+    W = 1793035800
+    monkeypatch.setattr(time, "time", lambda: W + 250.0)  # 50s left
+    S.ws_start = W
+    S.tokens = {"up": "OLD", "dn": "OLDD"}
+    S.next_tokens = {"up": "NU", "dn": "ND"}
+    S.next_ws = W + 300
+    S.next_books = {"NU": Book(bids={0.12: 10.0}, asks={0.13: 5.0}),
+                    "ND": Book(bids={0.87: 10.0}, asks={0.88: 5.0})}
+
+    TraderApp.action_next_window(app)
+
+    assert S.ws_start == W + 300
+    assert S.tokens == {"up": "NU", "dn": "ND"}
+
+
 def test_new_minute_opens_a_fresh_candle(S):
     from polytrader.feeds.binance import on_price_tick
 

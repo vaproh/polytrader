@@ -18,7 +18,7 @@ from ..feeds.basis import basis_loop
 from ..feeds.binance import binance_loop, fetch_klines
 from ..feeds.chainlink import chainlink_loop
 from ..feeds.clob import clob_loop, rest_fallback_loop
-from ..feeds.window import window_loop
+from ..feeds.window import _early_roll, window_loop
 from ..state import S, cur_book, mark_price, secs_left
 from .panels import (make_alerts_text, make_books_text, make_position_text,
                      make_signal_text, make_status_text, make_trades_text,
@@ -248,6 +248,7 @@ class TraderApp(App):
     """
     BINDINGS = [
         ("k", "toggle_stop", "stop"),
+        ("n", "next_window", "next"),
         ("T", "toggle_exits", "exits"),
         ("]", "preset_next", "preset+"),
         ("[", "preset_prev", "preset-"),
@@ -396,6 +397,17 @@ class TraderApp(App):
     def action_toggle_stop(self):
         S.stop_on = not S.stop_on
         S.msg = f"stop {'ARMED' if S.stop_on else 'OFF'}"
+        self.refresh_view()
+
+    def action_next_window(self):
+        now = time.time()
+        ws = int(now // 300 * 300)
+        if S.pos.side:
+            S.msg = "flat only -- s to sell first"
+        elif 300 - (now - ws) > 60:
+            S.msg = "next window unlocks under 60s left"
+        elif not _early_roll(ws):
+            S.msg = "next not listed yet"
         self.refresh_view()
 
     def action_buy(self, side):
