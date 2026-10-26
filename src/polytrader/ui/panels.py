@@ -182,6 +182,9 @@ def make_window_text():
 
     t.append("resolution: 60s TWAP at close vs beat at open. Up if final >= beat.",
              style="dim italic")
+    if S.armed:
+        t.append(f"\nARMED {S.armed.upper()} next window -- U/D to disarm",
+                 style="bold yellow")
     return t
 
 

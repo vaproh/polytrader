@@ -106,6 +106,7 @@ def test_pause_stops_the_detector_timer(S, monkeypatch):
         is_mounted = True
         paint_books = staticmethod(lambda: None)
         check_exits = staticmethod(lambda: None)
+        maybe_fire_armed = staticmethod(lambda: None)
 
     S.paused = True
     TraderApp.tick_view(Dummy())
