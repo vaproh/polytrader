@@ -408,43 +408,6 @@ def make_trades_text():
     return t
 
 
-def make_chart_text(rows=8):
-    """Big 1-minute-close chart, green above the beat, red below it.
-
-    The beat is drawn as a yellow line across the row it falls on, so the
-    resolution state is visible at a glance. Falls back to a warming message
-    until there are enough bars to draw.
-    """
-    t = Text()
-    width = max(40, min(S.width or 110, 220))
-    closes = list(S.klines)[-width:]
-    t.append("BTC 1m  ", style="bold")
-    if len(closes) < 10:
-        t.append(f"warming up -- {len(closes)} bars", style="dim")
-        return t
-    lo, hi = min(closes), max(closes)
-    span = (hi - lo) or 1e-9
-    t.append(f"${hi:,.0f} high  ${lo:,.0f} low  last ${closes[-1]:,.2f}",
-             style="dim")
-    if S.strike:
-        t.append(f"  beat ${S.strike:,.2f}", style="yellow")
-    t.append("\n")
-    brow = None
-    if S.strike and lo <= S.strike <= hi:
-        brow = min(rows - 1, max(0, round((hi - S.strike) / span * (rows - 1))))
-    for r in range(rows):
-        edge = hi - (r + 1) * span / rows
-        for v in closes:
-            if v >= edge:
-                t.append("█", style="green" if v >= (S.strike or 0) else "red")
-            elif r == brow:
-                t.append("─", style="yellow")
-            else:
-                t.append(" ")
-        t.append("\n")
-    return t
-
-
 def make_log_text():
     """Bottom panel: the position block, then the trade log."""
     t = make_position_text()

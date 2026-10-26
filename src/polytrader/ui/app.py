@@ -19,9 +19,8 @@ from ..feeds.chainlink import chainlink_loop
 from ..feeds.clob import clob_loop, rest_fallback_loop
 from ..feeds.window import window_loop
 from ..state import S, cur_book, mark_price, secs_left
-from .panels import (make_alerts_text, make_books_text, make_chart_text,
-                     make_log_text, make_signal_text, make_status_text,
-                     make_window_text)
+from .panels import (make_alerts_text, make_books_text, make_log_text,
+                     make_signal_text, make_status_text, make_window_text)
 
 
 class Panel(Static):
@@ -132,7 +131,6 @@ class TraderApp(App):
     #signal { height: 10; }
     #alerts { height: 7; }
     #log { height: 1fr; }
-    #chart { height: 12; }
     .box { border: round #444444; padding: 0 1; }
     """
     BINDINGS = [
@@ -159,7 +157,6 @@ class TraderApp(App):
         yield Panel(id="status", classes="box")
         yield Panel(id="window", classes="box")
         yield Panel(id="books", classes="box")
-        yield Panel(id="chart", classes="box")
         yield Panel(id="signal", classes="box")
         yield Panel(id="alerts", classes="box")
         yield Panel(id="log", classes="box")
@@ -449,10 +446,6 @@ class TraderApp(App):
     def refresh_view(self):
         if not self.is_mounted:
             return
-        try:
-            S.width = max(0, self.size.width - 6)
-        except Exception:
-            pass
         # the TWAP is display math, so keep it live even while paused.
         # The exact Chainlink feed owns the resolution numbers; fall back to
         # the Binance proxy only when the exact value is absent or stale.
@@ -467,7 +460,6 @@ class TraderApp(App):
         self._set("#status", make_status_text())
         self._set("#window", make_window_text())
         self._set("#books", make_books_text())
-        self._set("#chart", make_chart_text())
         self._set("#signal", make_signal_text())
         self._set("#alerts", make_alerts_text())
         self._set("#log", make_log_text())

@@ -92,7 +92,6 @@ class State:
         self.usdt_usd = 0.9985   # USDT/USD basis for Binance -> USD
         self.usdt_usd_ts = 0.0
         self.session_open = 0.0  # first BTC price seen by this process
-        self.width = 0           # terminal columns, set by refresh_view
         self.klines: list[float] = []
         self.bar_ts = 0
         self.preset = "SCALP"

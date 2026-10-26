@@ -123,26 +123,6 @@ def test_signal_prints_every_rsi_with_one_decimal(S):
     assert "24:100.0" in text
 
 
-def test_chart_marks_the_beat_and_scales_to_the_bars(S):
-    S.klines = [float(80000 + i) for i in range(30)]
-    S.strike = 80014.0
-    S.width = 80
-
-    text = panels.make_chart_text().plain
-
-    assert "BTC 1m" in text
-    assert "high" in text and "low" in text
-    assert "─" in text
-
-
-def test_chart_warms_up_instead_of_drawing_noise(S):
-    S.klines = [1.0] * 4
-
-    text = panels.make_chart_text().plain
-
-    assert "warming up -- 4 bars" in text
-
-
 def test_log_holds_the_position_and_the_trades(S):
     S.pos.side = "up"
     S.pos.qty = 10.0
