@@ -18,6 +18,7 @@ from ..feeds.basis import basis_loop
 from ..feeds.binance import binance_loop, fetch_klines
 from ..feeds.chainlink import chainlink_loop
 from ..feeds.clob import clob_loop, rest_fallback_loop
+from ..feeds.flow import flow_loop
 from ..feeds.window import _early_roll, window_loop
 from ..state import S, cur_book, latch_twap_open, mark_price, secs_left
 from .panels import (make_alerts_text, make_books_text, make_position_text,
@@ -292,6 +293,7 @@ class TraderApp(App):
     async def _boot(self):
         asyncio.create_task(binance_loop())
         asyncio.create_task(window_loop())
+        asyncio.create_task(flow_loop())
         asyncio.create_task(chainlink_loop())
         asyncio.create_task(rest_fallback_loop())
         asyncio.create_task(basis_loop())
