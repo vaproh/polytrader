@@ -16,6 +16,10 @@ PRESETS = {
 }
 
 CFG_PATH = os.path.expanduser("~/.polytrader.json")
+# Every closed trade the terminal books, appended as one JSON object per line.
+# Only the terminal's own fills live here; manual trades placed on the website
+# are invisible to the bot and never recorded.
+HISTORY_PATH = os.path.expanduser("~/.polytrader-history.jsonl")
 
 
 def load_cfg():

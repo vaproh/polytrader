@@ -65,6 +65,8 @@ class State:
         self.mid_hist = deque(maxlen=400)       # (250ms bucket, mid_up)
         self.pos = Position()
         self.trades: list[dict] = []
+        self.history: list[dict] = []  # past runs, oldest first
+        self.history_mode = False      # False: session log, True: all-time log
         self.paused = False
         self.live = False
         self.stake = 0.0  # 0 means disarmed: u/d refuse until an amount is set

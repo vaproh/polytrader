@@ -8,7 +8,8 @@ from rich.text import Text
 from textual.app import App, ComposeResult
 from textual.containers import Horizontal, Vertical
 from textual.screen import ModalScreen
-from textual.widgets import Button, Footer, Header, Input, Label, Static
+from textual.widgets import (Button, Footer, Header, Input, Label, RichLog,
+                               Static)
 
 from ..config import PRESETS, effective_preset, fmt_leg, save_cfg
 from ..detector import recompute_detector, twap60
@@ -260,6 +261,9 @@ class TraderApp(App):
         ("a", "amount", "amount"),
         ("e", "risk", "risk"),
         ("b", "toggle_bell", "bell"),
+        ("h", "toggle_history", "history"),
+        ("J", "log_down"),
+        ("K", "log_up"),
         ("p", "pause", "pause"),
         ("r", "reload", "reload"),
         ("L", "toggle_live", "paper/live"),
@@ -275,7 +279,7 @@ class TraderApp(App):
             yield Panel(id="signal", classes="box")
             yield Panel(id="pos", classes="box")
         yield Panel(id="alerts", classes="box")
-        yield Panel(id="log", classes="box")
+        yield RichLog(id="log", classes="box", max_lines=500)
         yield Footer()
 
     def on_mount(self):
@@ -335,6 +339,23 @@ class TraderApp(App):
         S.bell = not S.bell
         S.msg = f"bell {'ON' if S.bell else 'OFF'}"
         self.refresh_view()
+
+    def action_toggle_history(self):
+        S.history_mode = not S.history_mode
+        S.msg = "log: all-time" if S.history_mode else "log: session"
+        self.refresh_view()
+
+    def action_log_down(self):
+        try:
+            self.query_one("#log", RichLog).scroll_down()
+        except Exception:
+            pass
+
+    def action_log_up(self):
+        try:
+            self.query_one("#log", RichLog).scroll_up()
+        except Exception:
+            pass
 
     def action_pause(self):
         S.paused = not S.paused
@@ -520,6 +541,31 @@ class TraderApp(App):
             return False
         return True
 
+    def _set_log(self, text):
+        """Rewrite the scrollable trade log, preserving the scroll position.
+
+        RichLog has no update(): clear + rewrite only happens when the content
+        actually changed, so scrolling through history is never yanked around
+        by the 10 Hz repaint. A brand-new trade still lands at the bottom via
+        auto_scroll.
+        """
+        if isinstance(text, Text):
+            sig = (text.plain, tuple((sp.start, sp.end, str(sp.style)) for sp in text.spans))
+        else:
+            sig = str(text)
+        if self._sig.get("#log") == sig:
+            return False
+        self._sig["#log"] = sig
+        try:
+            w = self.query_one("#log", RichLog)
+        except Exception:
+            return False
+        w.clear()
+        lines = text.split(allow_blank=True) if isinstance(text, Text) else str(text).split("\n")
+        for line in lines:
+            w.write(line)
+        return True
+
     def paint_books(self):
         """Repaint just the book panel when new data lands (<=25/s)."""
         if not self.is_mounted or not S.book_dirty:
@@ -608,4 +654,4 @@ class TraderApp(App):
         self._set("#signal", make_signal_text())
         self._set("#pos", make_position_text())
         self._set("#alerts", make_alerts_text())
-        self._set("#log", make_trades_text())
+        self._set_log(make_trades_text())

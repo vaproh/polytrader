@@ -34,5 +34,7 @@ def S(monkeypatch):
     from polytrader import config, state
 
     monkeypatch.setattr(config, "CFG_PATH", os.path.join(_TMP_HOME, "cfg.json"))
+    monkeypatch.setattr(config, "HISTORY_PATH",
+                        os.path.join(_TMP_HOME, "history.jsonl"))
     state.S.__init__()
     return state.S

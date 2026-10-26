@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 
 from .state import S
+from .engine import load_history
 from .ui.app import TraderApp
 
 
@@ -20,6 +21,7 @@ def main():
     if a.stake < 0:
         ap.error("--stake must be >= 0")
     S.stake = a.stake
+    S.history = load_history()
 
     if a.live or a.dry:
         from .broker import LiveBroker
