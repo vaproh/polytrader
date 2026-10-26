@@ -129,15 +129,15 @@ Six panels, top to bottom:
 
 | panel | meaning |
 |---|---|
-| **top** | BTC spot, session %, mode, stake, status; distance to strike, z-score, tick vol, travel, 30s/60s move; fair value vs market ask; RSI(14) and a sparkline |
+| **top** | BTC spot, 60s TWAP, session %, mode, stake, status; distance to strike, z-score, tick vol, travel, 30s/60s move; fair value vs market ask; RSI(14) and a sparkline |
 | **books** | both outcome tokens, best bid/ask, size, depth within 3c, pair sum |
 | **regime** | detected state with travel, efficiency, net, reversals, drift |
 | **pos** | side, size, entry, mark, P&L, stop and TP prices, session P&L, win rate |
 | **alerts** | mechanical warnings: RSI extremes, volume surge, aggressor split, CVD, divergence, vol expansion, streaks, EMA200, MACD, Bollinger squeeze |
 | **stats** | base rates for the detected regime and the old gate rules, one PASS/FAIL each |
 
-First ~36 seconds of each window show `WARMUP`: the detector needs 36 s of book
-history before it names a regime. A brand-new window also has an empty book for
+First ~31 seconds of each window show `WARMUP`: the detector needs about 31 s
+of book history before it names a regime. A brand-new window also has an empty book for
 ~8 s, which is real, not a bug.
 
 **Base rates are frequencies, not a recommendation.** They are measured on a

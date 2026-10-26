@@ -49,8 +49,8 @@ def roll_to_window(ws, toks, px=None):
     # 60s mean ending at the boundary, converted from USDT to USD. Spot is the
     # fallback when the feed has not been up long enough to average.
     tx = twap60(now=ws, min_samples=30)
-    S.strike = ((tx * S.usdt_usd) if tx
-                else (S.btc or (S.klines[-1] if S.klines else 0.0)))
+    # both branches must land in USD: the live TWAP is also multiplied by the rate
+    S.strike = (tx or S.btc or (S.klines[-1] if S.klines else 0.0)) * S.usdt_usd
     S.twap = S.strike
     S.mid_hist.clear()
     S.books.clear()

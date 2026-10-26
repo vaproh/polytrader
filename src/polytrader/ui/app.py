@@ -391,7 +391,7 @@ class TraderApp(App):
         r.append("DETECTED STATE\n", style="bold")
         if reg == "WARMUP":
             r.append("WARMUP\n", style="bold yellow")
-            r.append(f"need 36s of book history\n", style="dim")
+            r.append("need ~31s of book history\n", style="dim")
             r.append(f"{bar(getattr(S,'warm',0.0))} {getattr(S,'warm',0)*100:.0f}%\n\n",
                      style="yellow")
         else:

@@ -43,10 +43,33 @@ def test_rollover_uses_the_twap_and_the_basis(S):
 def test_rollover_falls_back_to_spot_without_history(S):
     S.btc_hist.clear()
     S.btc = 81000.0
+    S.usdt_usd = 0.5
 
     roll_to_window(123, {"up": "U"})
 
-    assert S.strike == pytest.approx(81000.0)
+    # the fallback is a USDT spot, so it must be converted like the live TWAP
+    assert S.strike == pytest.approx(40500.0)
+
+
+def test_fallback_strike_keeps_the_basis_out_of_the_distance(S):
+    now = time.time()
+    S.btc_hist.clear()
+    prices = [80000.0 + (i % 7) * 0.5 for i in range(120)]
+    for i, p in enumerate(prices):
+        S.btc_hist.append((now - 60 + i * 0.5, p))
+    S.klines = prices[-40:]
+    S.usdt_usd = 0.5
+    S.btc = sum(prices) / len(prices)
+
+    # no samples at the boundary -> fallback branch
+    roll_to_window(123, {"up": "U"})
+    # the next refresh prices the live TWAP the same way
+    S.twap = detector.twap60(now=now) * S.usdt_usd
+    S.ws_start = int(now) - 60
+
+    st = detector.btc_state()
+    assert st is not None
+    assert st["dist"] == pytest.approx(0.0, abs=1e-6)
 
 
 def test_fair_value_uses_the_twap_not_spot(S):
