@@ -109,8 +109,8 @@ class State:
             pass
         self.book_dirty = False
         self.last_book_paint = 0.0
-        self.prev_twap = 0.0  # last painted TWAP, for the tick arrow
-        self.prev_btc = 0.0  # last painted spot, for the tick arrow
+        self.candle_open = 0.0  # first spot price of the current 1m candle
+        self.twap_open = 0.0  # TWAP sampled at the candle open
         self.next_tokens: dict[str, str] = {}  # next window's "up"/"dn" -> asset_id
         self.next_books: dict[str, Book] = {}  # next window's asset_id -> Book
         self.next_slug = ""

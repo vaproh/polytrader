@@ -26,9 +26,11 @@ def on_price_tick(p, now):
     """Fold one trade price into the spot history and the 1m close series.
 
     A new minute appends the close of the bar that just ended; every tick
-    overwrites the forming bar's close with the live price. Without the append
-    the series never grows, so RSI, EMA200, MACD and the vol floor all keep
-    reading the bars that were seeded at startup.
+    overwrites the forming bar's close with the live price. The candle open
+    is the first tick of the minute, so the panel arrows read the current
+    1-minute candle numerically. Without the append the series never grows,
+    so RSI, EMA200, MACD and the vol floor all keep reading the bars that
+    were seeded at startup.
     """
     b = int(now // 60)
     if b != S.bar_ts:
@@ -38,6 +40,8 @@ def on_price_tick(p, now):
             if len(S.klines) > 200:
                 S.klines = S.klines[-200:]
         S.bar_ts = b
+        S.candle_open = p    # first tick of the new candle
+        S.twap_open = S.twap  # TWAP at the candle open
     S.btc = p
     if not S.session_open:
         S.session_open = p
