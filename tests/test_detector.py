@@ -164,8 +164,8 @@ def test_gate_checks_show_dashes_before_the_detector_warms(S):
     S.tokens = {}
     checks = detector.gate_checks()
     labels = {label: (ok, val) for label, ok, val in checks}
-    assert labels["vol"] == (False, "\u2014")
-    assert labels["px"] == (False, "\u2014")
+    assert labels["vol"] == (False, "--")
+    assert labels["px"] == (False, "--")
 
 
 def test_gate_checks_pass_on_their_own_rulebook(S):

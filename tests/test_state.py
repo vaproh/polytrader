@@ -26,6 +26,7 @@ def test_rollover_settles_at_the_old_mark_not_at_zero(S):
     assert S.pos.side == ""
     assert S.trades[0]["exit"] == 0.55
     assert S.trades[0]["pnl"] == pytest.approx(0.5)
+    assert S.trades[0]["reason"] == "window rolled"
     assert S.tokens == {"up": "NEW", "dn": "NEWD"}
     assert "OLD" not in S.books
 
@@ -195,3 +196,32 @@ def test_trade_log_is_capped(S):
         settle_position(f"t{i}")
 
     assert len(S.trades) == 200
+
+
+def test_kline_seed_retries_after_a_failed_rest_call(S, monkeypatch):
+    calls = []
+
+    def fake_fetch():
+        calls.append(1)
+        return [] if len(calls) == 1 else [1.0] * 30
+
+    async def no_sleep(_):
+        return None
+
+    S.klines = []
+    monkeypatch.setattr(app_mod, "fetch_klines", fake_fetch)
+    monkeypatch.setattr(app_mod.asyncio, "sleep", no_sleep)
+
+    asyncio.run(TraderApp._seed_klines(object.__new__(TraderApp)))
+
+    assert len(calls) == 2
+    assert len(S.klines) == 30
+
+
+def test_failed_seed_does_not_wipe_tick_bars(S, monkeypatch):
+    S.klines = [1.0] * 40
+    monkeypatch.setattr(app_mod, "fetch_klines", lambda: [])
+
+    asyncio.run(TraderApp._seed_klines(object.__new__(TraderApp)))
+
+    assert S.klines == [1.0] * 40
