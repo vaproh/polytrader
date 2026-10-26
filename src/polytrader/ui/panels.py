@@ -57,6 +57,21 @@ def _gap(px):
     return gap, (gap / S.strike * 100 if S.strike else 0.0)
 
 
+def _tick_arrow(cur, prev):
+    """Direction and size of the move since the last paint.
+
+    Blank on the first paint so a restart never shows a bogus move.
+    """
+    if not cur or not prev:
+        return None
+    d = cur - prev
+    if d > 0:
+        return ("green", f"▲ +{d:,.2f}")
+    if d < 0:
+        return ("red", f"▼ {d:,.2f}")
+    return ("dim", "▬ ±0.00")
+
+
 def _sign_style(v):
     return "green" if v >= 0 else "red"
 
@@ -159,6 +174,9 @@ def make_window_text():
         t.append(f"${S.twap:,.2f}", style="white")
         t.append(f"   {gap:+,.2f}  {pct:+.2f}%", style=_sign_style(gap))
         t.append(f"   {'UP' if gap >= 0 else 'DOWN'}", style=f"bold {_sign_style(gap)}")
+        arrow = _tick_arrow(S.twap, S.prev_twap)
+        if arrow:
+            t.append(f"   {arrow[1]}", style=arrow[0])
     else:
         t.append("warming up (60s mean)", style="dim")
     t.append("\n")
@@ -170,6 +188,9 @@ def make_window_text():
         t.append(f"   {gap:+,.2f}  {pct:+.2f}%", style=_sign_style(gap))
         t.append("   above beat (not resolution)" if gap >= 0
                  else "   below beat (not resolution)", style="dim")
+        arrow = _tick_arrow(S.btc, S.prev_btc)
+        if arrow:
+            t.append(f"   {arrow[1]}", style=arrow[0])
     else:
         t.append("--", style="dim")
     t.append("\n")
