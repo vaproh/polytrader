@@ -36,9 +36,8 @@ wallet first. Otherwise orders fail on allowance, not balance.
 
 | key | action | | key | action |
 |---|---|---|---|---|
-| `u` / `d` | buy UP / DOWN at ask | | `U` / `D` | arm UP / DOWN for next window |
-| `s` | sell at bid | | `1`-`9` | stake $1-9 |
-| | | | `a` | custom dollar amount |
+| `u` / `d` | buy UP / DOWN at ask | | `1`-`9` | stake $1-9 |
+| `s` | sell at bid | | `a` | custom dollar amount |
 | `p` | pause detector | | `[` `]` | preset prev/next |
 | `r` | reload window | | `k` | stop arm/disarm |
 | `q` | quit | | `T` | exits (tp+stop) on/off |
@@ -161,7 +160,7 @@ Seven panels, top to bottom:
 |---|---|
 | **status** | BTC spot, price to beat and source, current TWAP with UP/DOWN and dollar/percent distance, session %, mode, cash/order/after/cap, stake, pause, last action |
 | **window** | window slug, countdown and progress bar, price to beat and source, 60s TWAP now with UP/DOWN and distance plus its tick arrow, Binance spot as context with its tick arrow, resolution rule |
-| **books** | both outcome tokens, best bid/ask with size, depth within 3c, shares the stake buys, pair bid/ask and overround, fresh/stale quote age |
+| **books** | both outcome tokens, best bid/ask with size, depth within 3c, shares the stake buys, pair bid/ask and overround, fresh/stale quote age, plus the next window's countdown and book preview |
 | **signal** | detected regime, fair P(up) vs market ask, token bid base rates, z-score, tick vol, travel, 30s/60s move, RSI(1m) 6/12/14/24 plus a per-second RSI(5s), gate checks |
 | **alerts** | mechanical warnings: RSI extremes, volume surge, aggressor split, CVD, divergence, vol expansion, streaks, EMA200, MACD, Bollinger squeeze |
 | **pos** | side, size, cost, value, pays-on-win, entry, mark, P&L, stop and TP prices, session P&L, win rate, preset |
@@ -171,6 +170,11 @@ The resolution reference is the **60s TWAP at the close**, not spot. The window
 panel shows both: `TWAP NOW` decides UP/DOWN against the beat, and `SPOT
 (binance)` is context only. The status and window panels label whether the beat
 and TWAP came from `chainlink` or the fallback `proxy`.
+
+Under 60 seconds left with the next book live, the terminal rolls early:
+the window panel counts `opens in`, the books panel previews the next
+market, and `u`/`d`/`s` trade it at once. Holding a position keeps the old
+window until the boundary settles it.
 
 First ~31 seconds of each window show `WARMUP`: the detector needs about 31 s
 of book history before it names a regime. A brand-new window also has an empty book for

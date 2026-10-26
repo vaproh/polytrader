@@ -42,6 +42,56 @@ def test_rollover_without_a_position_just_switches(S):
     assert S.trades == []
 
 
+def test_early_roll_switches_to_the_next_window(S):
+    from polytrader.feeds.window import _early_roll
+
+    S.ws_start = 1793035800
+    S.tokens = {"up": "OLD", "dn": "OLDD"}
+    S.next_tokens = {"up": "NU", "dn": "ND"}
+    S.next_ws = 1793036100
+    S.next_books = {"NU": Book(bids={0.12: 10.0}, asks={0.13: 5.0}),
+                    "ND": Book(bids={0.87: 10.0}, asks={0.88: 5.0})}
+
+    assert _early_roll(1793035800) is True
+
+    assert S.ws_start == 1793036100
+    assert S.tokens == {"up": "NU", "dn": "ND"}
+    assert S.books["NU"].best_ask() == pytest.approx(0.13)
+    assert S.next_ws == 0  # consumed
+    assert S.pos.side == ""  # was flat, nothing to settle
+
+
+def test_early_roll_waits_while_holding_a_position(S):
+    from polytrader.feeds.window import _early_roll
+
+    S.ws_start = 1793035800
+    S.tokens = {"up": "OLD", "dn": "OLDD"}
+    S.pos.side = "up"
+    S.pos.qty = 10.0
+    S.pos.entry = 0.50
+    S.next_tokens = {"up": "NU", "dn": "ND"}
+    S.next_books = {"NU": Book(bids={0.12: 10.0}, asks={0.13: 5.0}),
+                    "ND": Book(bids={0.87: 10.0}, asks={0.88: 5.0})}
+
+    assert _early_roll(1793035800) is False
+
+    assert S.ws_start == 1793035800
+    assert S.pos.side == "up"
+
+
+def test_early_roll_waits_for_the_next_book(S):
+    from polytrader.feeds.window import _early_roll
+
+    S.ws_start = 1793035800
+    S.tokens = {"up": "OLD", "dn": "OLDD"}
+    S.next_tokens = {}
+    S.next_books = {}
+
+    assert _early_roll(1793035800) is False
+
+    assert S.ws_start == 1793035800
+
+
 def test_new_minute_appends_a_closed_bar(S):
     S.klines = [1.0, 2.0, 3.0]
     S.bar_ts = 10
@@ -106,7 +156,6 @@ def test_pause_stops_the_detector_timer(S, monkeypatch):
         is_mounted = True
         paint_books = staticmethod(lambda: None)
         check_exits = staticmethod(lambda: None)
-        maybe_fire_armed = staticmethod(lambda: None)
 
     S.paused = True
     TraderApp.tick_view(Dummy())
