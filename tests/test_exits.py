@@ -123,6 +123,20 @@ def test_a_partial_close_keeps_the_rest_open(S):
     assert len(S.trades) == 2
 
 
+def test_dust_the_exchange_cannot_sell_is_absorbed(S):
+    S.tokens = {"up": "TOK"}
+    S.books = {"TOK": Book(bids={0.50: 100.0})}
+    S.pos.side = "up"
+    S.pos.qty = 2.5
+    S.pos.entry = 0.40
+
+    settle_position("sold", 0.50, 2.496)
+
+    assert S.pos.side == ""
+    assert S.pos.qty == 0.0
+    assert S.trades[0]["qty"] == pytest.approx(2.496)
+
+
 def test_secs_left_counts_down_from_the_window_open(S):
     import time
 
