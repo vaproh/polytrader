@@ -6,7 +6,7 @@ from types import SimpleNamespace
 
 import pytest
 
-import execution
+import polytrader.broker as pb
 
 PK = "0x" + "11" * 32
 TOKEN = "1234567890"
@@ -55,8 +55,8 @@ def boot(monkeypatch, fake, **env):
     monkeypatch.setenv("PK", PK)
     for k, v in env.items():
         monkeypatch.setenv(k, v)
-    monkeypatch.setattr(execution, "_make_client", lambda key, wallet: fake)
-    return execution.LiveBroker()
+    monkeypatch.setattr(pb, "_make_client", lambda key, wallet: fake)
+    return pb.LiveBroker()
 
 
 @pytest.fixture
@@ -71,14 +71,14 @@ def broker(monkeypatch):
 def test_no_key_stays_paper(monkeypatch):
     monkeypatch.delenv("PK", raising=False)
     monkeypatch.delenv("PRIVATE_KEY", raising=False)
-    b = execution.LiveBroker()
+    b = pb.LiveBroker()
     assert b.ok is False
     assert "no PK" in b.error
 
 
 def test_bad_key_is_reported(monkeypatch):
     monkeypatch.setenv("PK", "0xnope")
-    b = execution.LiveBroker()
+    b = pb.LiveBroker()
     assert b.ok is False
     assert b.error.startswith("bad PK")
 
@@ -268,7 +268,7 @@ def test_a_rejected_order_leaves_no_fill(broker):
 def test_a_dead_broker_refuses_every_order(monkeypatch):
     monkeypatch.delenv("PK", raising=False)
     monkeypatch.delenv("PRIVATE_KEY", raising=False)
-    b = execution.LiveBroker()
+    b = pb.LiveBroker()
     assert b.buy(TOKEN, 5.0, 0.42)[0] is False
     assert b.sell(TOKEN, 5.0, 0.42)[0] is False
 
@@ -276,7 +276,7 @@ def test_a_dead_broker_refuses_every_order(monkeypatch):
 def test_doctor_exits_nonzero_without_credentials(monkeypatch, capsys):
     monkeypatch.delenv("PK", raising=False)
     monkeypatch.delenv("PRIVATE_KEY", raising=False)
-    assert execution.doctor() == 1
+    assert pb.doctor() == 1
     out = capsys.readouterr().out
     assert "signer : (none)" in out
     assert "ready  : False" in out

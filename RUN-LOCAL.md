@@ -13,7 +13,7 @@ below runs through `uv run`; the `justfile` has the same recipes.
 ## 2. Paper mode first (no key needed)
 
 ```bash
-uv run python trader.py
+uv run polytrader
 ```
 
 Reads live Polymarket + Binance. Buys and sells are simulated at the book.
@@ -53,7 +53,7 @@ wallet type from the key and funder:
 Not sure? Run the doctor: it prints the signer it derived from your key:
 
 ```bash
-uv run python execution.py
+uv run polytrader-doctor
 ```
 
 If `signer` equals the address holding your funds, leave `POLY_FUNDER` empty.
@@ -74,7 +74,7 @@ bound are readable. Nothing is signed and nothing is sent, so this is a
 credential check, not a signing test. The header reads `DRY`, not `LIVE`.
 
 ```bash
-uv run python trader.py --dry
+uv run polytrader --dry
 ```
 
 You should see a `DRY buy $5.00 @<=0.43` style line after pressing `u`.
@@ -82,7 +82,7 @@ You should see a `DRY buy $5.00 @<=0.43` style line after pressing `u`.
 ## 6. Live
 
 ```bash
-uv run python trader.py --live --stake 5
+uv run polytrader --live --stake 5
 ```
 
 The header turns **red**, shows `[LIVE]`, your truncated funder address and

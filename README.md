@@ -14,9 +14,9 @@ gets out of the way.
 ```bash
 uv sync
 
-uv run python trader.py              # paper, no credentials
-uv run python trader.py --dry        # credential + price-bound check; nothing sent
-uv run python trader.py --live       # real orders
+uv run polytrader              # paper, no credentials
+uv run polytrader --dry        # credential + price-bound check; nothing sent
+uv run polytrader --live       # real orders
 ```
 
 `uv sync` builds `.venv` from `pyproject.toml` and `uv.lock`; every command
@@ -184,9 +184,9 @@ at `_make_client`, so they never place an order or read a key.
 
 | file | purpose |
 |---|---|
-| **`trader.py`** | the terminal: feeds, detector, exits, panels, keys |
-| `execution.py` | live broker (`polymarket-client`), opt-in; `python execution.py` prints the derived signer |
-| `pm_tools.py` | Polymarket REST helpers: market lookup, book, trades, wallets |
+| **`src/polytrader/`** | the terminal: `state`, `config`, `detector`, `engine`, `feeds/`, `ui/` |
+| `src/polytrader/broker.py` | live broker (`polymarket-client`), opt-in; `uv run polytrader-doctor` prints the derived signer |
+| `src/polytrader/poly.py` | Polymarket REST helpers: market lookup and book |
 | `tests/` | pytest suite |
 | `RUN-LOCAL.md` | credentials, allowances, wallet setup |
 | `.env.example` | credential template |
