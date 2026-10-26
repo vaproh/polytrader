@@ -254,11 +254,9 @@ class TraderApp(App):
         ("u", "buy('up')", "buy UP"),
         ("d", "buy('dn')", "buy DOWN"),
         ("s", "sell", "sell"),
-        ("x", "flatten", "flatten"),
         ("1", "stake(1)"), ("2", "stake(2)"), ("3", "stake(3)"),
         ("4", "stake(4)"), ("5", "stake(5)"), ("6", "stake(6)"),
         ("7", "stake(7)"), ("8", "stake(8)"), ("9", "stake(9)"),
-        ("o", "stake_cycle", "size up"),
         ("a", "amount", "amount"),
         ("e", "risk", "risk"),
         ("b", "toggle_bell", "bell"),
@@ -302,11 +300,6 @@ class TraderApp(App):
     # ---- keys
     def action_stake(self, n):
         S.stake = float(n)
-        save_cfg({"preset": S.preset, "stake": S.stake})
-        S.msg = f"stake ${S.stake:,.2f}"
-
-    def action_stake_cycle(self):
-        S.stake = round(S.stake + 1, 2)
         save_cfg({"preset": S.preset, "stake": S.stake})
         S.msg = f"stake ${S.stake:,.2f}"
 
@@ -381,17 +374,6 @@ class TraderApp(App):
         S.live = not S.live
         S.msg = ("LIVE -- orders will be real" if S.live
                  else "paper mode")
-
-    def action_flatten(self):
-        if S.live and S.pos.side and S.broker and S.broker.ok:
-            bid = mark_price(S.pos.side) or 0.0
-            S.busy = True
-            S.msg = "FLATTENING"
-            asyncio.create_task(self._live_sell(bid))
-            self.refresh_view()
-            return
-        settle_position("flatten")
-        self.refresh_view()
 
     def _set_preset(self, name):
         S.preset = name

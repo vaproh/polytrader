@@ -107,10 +107,8 @@ and starts in paper mode with the reason printed.
 | `u` | buy UP at the ask |
 | `d` | buy DOWN at the ask |
 | `s` | sell the position at the bid |
-| `x` | flatten + cancel resting orders |
 | `1`..`9` | stake $1..$9 |
 | `a` | custom dollar amount |
-| `o` | stake +$1 |
 | `e` | stop/tp for this preset (this session only, resets on restart) |
 | `b` | bell on/off |
 | `h` | session / all-time trade log (`J`/`K` scroll the log) |
