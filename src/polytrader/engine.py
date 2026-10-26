@@ -45,13 +45,14 @@ def roll_to_window(ws, toks, px=None):
     S.tokens = toks
     S.slug = f"btc-updown-5m-{ws}"
     S.ws_start = ws
-    # Resolution compares 60s Chainlink TWAPs, so the opening reference is the
-    # 60s mean ending at the boundary, converted from USDT to USD. Spot is the
-    # fallback when the feed has not been up long enough to average.
+    # Resolution compares 60s Chainlink TWAPs. The exact public feed overwrites
+    # this a moment later; the proxy is the fallback when that feed is down.
     tx = twap60(now=ws, min_samples=30)
     # both branches must land in USD: the live TWAP is also multiplied by the rate
     S.strike = (tx or S.btc or (S.klines[-1] if S.klines else 0.0)) * S.usdt_usd
     S.twap = S.strike
+    S.twap_src = "proxy"
+    S.twap_ts = 0.0
     S.mid_hist.clear()
     S.books.clear()
     S.msg = f"window {ws}"

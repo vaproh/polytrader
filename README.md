@@ -62,12 +62,13 @@ at the window open sets the **price to beat**, and the TWAP at the close sets
 the **final price**; Up wins when final is greater than or equal to beat. It is
 two 60-second lookbacks, not a five-minute average.
 
-Chainlink is a **USD** index and Binance quotes USDT, so the terminal takes the
-60-second mean of its own BTC ticks and multiplies by **USDT/USD** (Kraken,
-refreshed once a minute). Measured against Polymarket's published values over
-24 windows, that lands within **$3.73 on average and $10.56 worst**; unadjusted
-it is off by about $125. With credentials, `CryptoTwapPriceSpec` from
-`polymarket-client` is the exact feed and replaces the proxy.
+The terminal reads the same values from Polymarket's public 5m feed
+(`/api/crypto/price-history`), so the price to beat and the current TWAP match
+the market page. If that feed is unreachable it falls back to the 60-second mean
+of its own Binance BTC ticks times **USDT/USD** (Kraken, refreshed once a
+minute). Measured against Polymarket's published values over 24 windows, the
+fallback lands within **$3.73 on average and $10.56 worst**; unadjusted Binance
+is off by about $125. The screen labels the live source `chainlink` or `proxy`.
 
 Slug: `btc-updown-5m-<windowStartUnixTs>`, window = `ts .. ts+300`.
 
@@ -76,9 +77,10 @@ Slug: `btc-updown-5m-<windowStartUnixTs>`, window = `ts .. ts+300`.
 ## 3. Architecture
 
 ```
+Polymarket price-history API ──► S.strike (beat), S.twap (exact, 2s poll)
 Binance aggTrade WS ──► S.btc, btc_hist, trade_hist (buy/sell volume, CVD)
                               │
-                     60s mean × USDT/USD ──► S.twap, strike
+             60s mean × USDT/USD ──► fallback when the exact feed is stale
 Polymarket CLOB WS  ──► S.books (tick-exact: every message mutates the book)
                               │
                      250ms bucket (tick overwrites current bucket)
@@ -129,8 +131,8 @@ Seven panels, top to bottom:
 
 | panel | meaning |
 |---|---|
-| **status** | BTC spot with the price to beat and the dollar/percent distance, session %, mode, stake, pause, last action |
-| **window** | window slug, countdown, price to beat, 60s TWAP now with UP/DOWN and distance, spot vs beat, resolution rule |
+| **status** | BTC spot, price to beat and source, current TWAP with UP/DOWN and dollar/percent distance, session %, mode, stake, pause, last action |
+| **window** | window slug, countdown, price to beat and source, 60s TWAP now with UP/DOWN and distance, Binance spot as context, resolution rule |
 | **books** | both outcome tokens, best bid/ask with size, depth within 3c, pair bid/ask and overround |
 | **signal** | detected regime, fair P(up) vs market ask, base rates, z-score, tick vol, travel, 30s/60s move, RSI(14), gate checks |
 | **pos** | side, size, entry, mark, P&L, stop and TP prices, session P&L, win rate, preset |
@@ -138,9 +140,9 @@ Seven panels, top to bottom:
 | **trades** | closed trades with entry/exit, percent, P&L, and the close reason |
 
 The resolution reference is the **60s TWAP at the close**, not spot. The window
-panel shows both: `TWAP NOW` decides UP/DOWN against the beat, and `SPOT` is
-context only. The status line also puts the beat next to the BTC price so the
-cash distance is visible without reading the window panel.
+panel shows both: `TWAP NOW` decides UP/DOWN against the beat, and `SPOT
+(binance)` is context only. The status and window panels label whether the beat
+and TWAP came from `chainlink` or the fallback `proxy`.
 
 First ~31 seconds of each window show `WARMUP`: the detector needs about 31 s
 of book history before it names a regime. A brand-new window also has an empty book for
@@ -194,9 +196,11 @@ at `_make_client`, so they never place an order or read a key.
   on a binary contract. Worst case stays near −95% at any width.
 - One position at a time. Quitting with a live position leaves it open in your
   wallet with no tracker.
-- The strike is a proxy: Binance 60s mean times USDT/USD, within $3.73 on
-  average and $10.56 worst over the 24 windows measured. Near the money that can
-  move fair value by a few points. The exact Chainlink stream needs credentials.
+- The exact Polymarket TWAP feed can be unreachable. The terminal then falls back
+  to the Binance 60s mean times USDT/USD, within $3.73 on average and $10.56
+  worst over the 24 windows measured, and labels the source `proxy`. Near the
+  money that can move fair value by a few points. `chainlink stale` means the
+  last exact value is more than 10s old.
 - `POLY_MAX_USDC` is off unless you set it.
 
 ---
@@ -220,12 +224,14 @@ at `_make_client`, so they never place an order or read a key.
 
 | source | contents |
 |---|---|
-| `wss://stream.binance.com` aggTrade | BTC spot price, size, maker flag |
+| `wss://stream.binance.com` aggTrade | BTC spot (USDT), size, maker flag |
+| `polymarket.com/api/crypto/price-history` | exact 5m beat and TWAP history |
+| `polymarket.com/api/crypto/crypto-price` | exact window open price (beat) |
 | `wss://ws-subscriptions-clob.polymarket.com/ws/market` | book, price_change, last_trade_price |
 | `gamma-api.polymarket.com/markets?slug=` | token IDs for the current window |
 | `clob.polymarket.com/book?token_id=` | REST fallback when the socket is quiet |
-| `api.kraken.com/0/public/Ticker?pair=USDTZUSD` | USDT/USD basis, refreshed once a minute |
-| Polymarket `prices.crypto.twap` | exact Chainlink 60s TWAP, optional, needs `AsyncSecureClient` |
+| `api.kraken.com/0/public/Ticker?pair=USDTZUSD` | USDT/USD basis, fallback only |
+| Polymarket `prices.crypto.twap` | authenticated stream, optional alternative |
 
 Closed markets need `&closed=true` on the gamma `markets?slug=` query.
 

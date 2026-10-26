@@ -60,16 +60,30 @@ def _sign_style(v):
     return "green" if v >= 0 else "red"
 
 
+def twap_source():
+    """Which feed produced the beat/TWAP, including a stale exact value."""
+    if S.twap_src == "chainlink":
+        return "chainlink" if time.time() - S.twap_ts < 10 else "chainlink stale"
+    return S.twap_src or ""
+
+
 def make_status_text():
-    """One line: the spot price, the beat, and the last action."""
+    """One line: spot, beat, and the resolution TWAP vs the beat."""
     t = Text()
     t.append("BTC ", style="dim")
     t.append(f"${S.btc:,.2f}", style="bold white")
     if S.strike:
-        gap, pct = _gap(S.btc)
         t.append("   beat ", style="dim")
         t.append(f"${S.strike:,.2f}", style="white")
-        t.append(f"   {gap:+,.2f} ({pct:+.2f}%)", style=_sign_style(gap))
+        src = twap_source()
+        if src:
+            t.append(f" ({src})", style="dim")
+    if S.twap:
+        gap, pct = _gap(S.twap)
+        t.append("   TWAP ", style="dim")
+        t.append(f"${S.twap:,.2f}", style="white")
+        t.append(f" {gap:+,.2f} ({pct:+.2f}%)", style=_sign_style(gap))
+        t.append(f" {'UP' if gap >= 0 else 'DOWN'}", style=f"bold {_sign_style(gap)}")
     if S.session_open:
         ch = (S.btc / S.session_open - 1) * 100
         t.append(f"   {ch:+.2f}% session", style=_sign_style(ch))
@@ -102,6 +116,9 @@ def make_window_text():
 
     t.append("PRICE TO BEAT   ", style="dim")
     t.append(f"${S.strike:,.2f}" if S.strike else "--", style="bold white")
+    src = twap_source()
+    if S.strike and src:
+        t.append(f"  ({src})", style="dim")
     t.append("\n")
 
     t.append("TWAP NOW        ", style="dim")
@@ -114,12 +131,13 @@ def make_window_text():
         t.append("warming up (60s mean)", style="dim")
     t.append("\n")
 
-    t.append("SPOT            ", style="dim")
+    t.append("SPOT (binance)  ", style="dim")
     if S.btc and S.strike:
         gap, pct = _gap(S.btc)
         t.append(f"${S.btc:,.2f}", style="white")
         t.append(f"   {gap:+,.2f}  {pct:+.2f}%", style=_sign_style(gap))
-        t.append("   above beat" if gap >= 0 else "   below beat", style="dim")
+        t.append("   above beat (not resolution)" if gap >= 0
+                 else "   below beat (not resolution)", style="dim")
     else:
         t.append("--", style="dim")
     t.append("\n")

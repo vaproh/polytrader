@@ -11,11 +11,16 @@ def test_status_puts_the_beat_next_to_spot(S):
     S.btc = 79721.87
     S.strike = 79750.59
     S.twap = 79624.74
+    S.twap_src = "chainlink"
+    S.twap_ts = time.time()
 
     text = panels.make_status_text().plain
 
     assert "beat $79,750.59" in text
-    assert "-28.72" in text
+    assert "TWAP $79,624.74" in text
+    assert "-125.85" in text
+    assert "DOWN" in text
+    assert "chainlink" in text
 
 
 def test_window_shows_direction_and_both_distances(S):
@@ -24,14 +29,18 @@ def test_window_shows_direction_and_both_distances(S):
     S.btc = 79721.87
     S.strike = 79750.59
     S.twap = 79624.74
+    S.twap_src = "chainlink"
+    S.twap_ts = time.time()
 
     text = panels.make_window_text().plain
 
     assert "PRICE TO BEAT" in text
     assert "$79,750.59" in text
+    assert "chainlink" in text
     assert "DOWN" in text
     assert "-125.85" in text
     assert "-28.72" in text
+    assert "not resolution" in text
 
 
 def test_window_flips_to_up_when_twap_is_above_the_beat(S):
@@ -40,11 +49,25 @@ def test_window_flips_to_up_when_twap_is_above_the_beat(S):
     S.btc = 79721.87
     S.strike = 79750.59
     S.twap = 79800.00
+    S.twap_src = "chainlink"
+    S.twap_ts = time.time()
 
     text = panels.make_window_text().plain
 
     assert "UP" in text
     assert "+49.41" in text
+
+
+def test_window_labels_the_proxy_when_the_exact_feed_is_down(S):
+    S.slug = "btc-updown-5m-1793025000"
+    S.ws_start = int(time.time()) - 100
+    S.strike = 79750.59
+    S.twap = 79624.74
+    S.twap_src = "proxy"
+
+    text = panels.make_window_text().plain
+
+    assert "(proxy)" in text
 
 
 def test_books_show_both_pair_sums(S):

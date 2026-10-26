@@ -14,6 +14,7 @@ from ..detector import recompute_detector, twap60
 from ..engine import exit_decision, settle_position
 from ..feeds.basis import basis_loop
 from ..feeds.binance import binance_loop, fetch_klines
+from ..feeds.chainlink import chainlink_loop
 from ..feeds.clob import clob_loop, rest_fallback_loop
 from ..feeds.window import window_loop
 from ..state import S, cur_book, mark_price, secs_left
@@ -80,6 +81,7 @@ class TraderApp(App):
     async def _boot(self):
         asyncio.create_task(binance_loop())
         asyncio.create_task(window_loop())
+        asyncio.create_task(chainlink_loop())
         asyncio.create_task(rest_fallback_loop())
         asyncio.create_task(basis_loop())
         await asyncio.sleep(1.5)
@@ -331,9 +333,14 @@ class TraderApp(App):
     def refresh_view(self):
         if not self.is_mounted:
             return
-        # the TWAP is display math, so keep it live even while paused
-        tx = twap60(min_samples=30)
-        S.twap = (tx * S.usdt_usd) if tx else 0.0
+        # the TWAP is display math, so keep it live even while paused.
+        # The exact Chainlink feed owns the resolution numbers; fall back to
+        # the Binance proxy only when the exact value is absent or stale.
+        if S.twap_src != "chainlink" or time.time() - S.twap_ts > 10:
+            tx = twap60(min_samples=30)
+            if tx:
+                S.twap = tx * S.usdt_usd
+                S.twap_src = "proxy"
         if not S.paused:
             recompute_detector()
 

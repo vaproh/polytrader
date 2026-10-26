@@ -87,6 +87,8 @@ class State:
         self.vol_sell = 0.0
         self.strike = 0.0        # BTC when the current window opened
         self.twap = 0.0          # 60s BTC mean, the resolution statistic
+        self.twap_src = ""       # "chainlink" (exact) or "proxy" (Binance)
+        self.twap_ts = 0.0       # last successful exact fetch
         self.usdt_usd = 0.9985   # USDT/USD basis for Binance -> USD
         self.usdt_usd_ts = 0.0
         self.session_open = 0.0  # first BTC price seen by this process
