@@ -14,8 +14,8 @@ paper:
 dry:
     uv run polytrader --dry
 
-# real orders
-live stake="5":
+# real orders (starts disarmed: press a, then u/d)
+live stake="0":
     uv run polytrader --live --stake {{stake}}
 
 # offline suite: no credentials, no network

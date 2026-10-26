@@ -5,7 +5,7 @@ import time
 
 from rich.text import Text
 
-from ..config import PRESETS
+from ..config import effective_preset
 from ..detector import (btc_state, fair_p, gate_checks, rsi_last, vol_window,
                         warnings)
 from ..state import S, cur_book, mark_price, secs_left
@@ -60,6 +60,10 @@ def _sign_style(v):
     return "green" if v >= 0 else "red"
 
 
+def _usd(v):
+    return f"${v:,.2f}"
+
+
 def twap_source():
     """Which feed produced the beat/TWAP, including a stale exact value."""
     if S.twap_src == "chainlink":
@@ -95,11 +99,31 @@ def make_status_text():
         t.append(f" {S.funder[:6]}..{S.funder[-4:]}", style="dim")
         if S.balance is not None:
             t.append(f" ${S.balance:.2f}", style="green")
-    t.append(f"   stake ${S.stake}", style="yellow")
+    t.append(f"   stake {_usd(S.stake)}", style="yellow")
     if S.paused:
         t.append("   PAUSED", style="bold yellow")
+    if time.time() < S.flash_until:
+        t.append("   ● FILLED", style="bold yellow")
     if S.msg:
         t.append(f"   last: {S.msg}", style="dim")
+
+    # cash line: account collateral and the order this stake would place
+    t.append("\nCASH ", style="dim")
+    order = _usd(S.stake) if S.stake > 0 else "-- (press a)"
+    if S.live:
+        t.append(_usd(S.balance) if S.balance is not None else "--",
+                 style="bold green")
+        t.append(f"   ORDER {order}", style="yellow")
+        if S.balance is not None and S.stake > 0:
+            left = S.balance - S.stake
+            t.append(f"   AFTER {_usd(left)}", style="red" if left < 0 else "dim")
+        cap = getattr(S.broker, "max_usdc", 0.0) if S.broker else 0.0
+        t.append(f"   cap {_usd(cap)}/order" if cap > 0 else "   cap none",
+                 style="dim")
+    else:
+        t.append("-- (paper)", style="dim")
+        t.append(f"   ORDER {order}", style="yellow")
+        t.append("   cap --", style="dim")
     return t
 
 
@@ -112,6 +136,8 @@ def make_window_text():
         left = secs_left()
         t.append(f"   closes in {clock(left)}",
                  style="yellow" if left < 30 else "white")
+        done = min(1.0, max(0.0, (300 - left) / 300))
+        t.append(f"  {bar(done)} {done * 100:.0f}%", style="dim")
     t.append("\n")
 
     t.append("PRICE TO BEAT   ", style="dim")
@@ -170,6 +196,12 @@ def make_books_text():
              style="yellow")
     if ua is not None and da is not None:
         b.append(f"   overround {(ua + da - 1) * 100:+.2f}c", style="dim")
+    if S.book_ts:
+        age = time.time() - S.book_ts
+        if age < 3:
+            b.append("   fresh", style="green")
+        else:
+            b.append(f"   {age:.0f}s stale", style="bold yellow")
     b.append("\n")
 
     for side, label in (("up", "UP  "), ("dn", "DOWN")):
@@ -186,6 +218,17 @@ def make_books_text():
                  else "   ask  --", style="red")
         b.append(f"   depth3c ${dbid * (bb or 0):>6.0f}", style="dim")
         b.append(f" / ${dask * (ba or 0):>5.0f}\n", style="dim")
+
+    if ua is not None or da is not None:
+        b.append("ORDER  ", style="bold")
+        if S.stake > 0:
+            b.append(_usd(S.stake), style="yellow")
+            if ua is not None:
+                b.append(f" -> UP {S.stake / ua:.1f}sh", style="dim")
+            if da is not None:
+                b.append(f" / DOWN {S.stake / da:.1f}sh", style="dim")
+        else:
+            b.append("-- (press a)", style="dim")
 
     return b
 
@@ -241,12 +284,15 @@ def make_signal_text():
     t.append("   60s ", style="dim")
     t.append(f"{st['m60']:+.2f}" if st else "--",
              style=_sign_style(st["m60"]) if st else "dim")
-    t.append("   RSI(14) 1m ", style="dim")
-    if len(S.klines) >= 15:
-        r14 = rsi_last(S.klines)
-        t.append(f"{r14:.1f}", style="red" if r14 >= 70 else ("green" if r14 <= 30 else "white"))
+    t.append("   RSI(1m) ", style="dim")
+    warmed = [p for p in (6, 12, 14, 24) if len(S.klines) >= p + 1]
+    if warmed:
+        for p in warmed:
+            r = rsi_last(S.klines, p)
+            col = "red" if r >= 70 else ("green" if r <= 30 else "white")
+            t.append(f"{p}:{r:.1f} ", style=col)
     else:
-        t.append(f"-- ({len(S.klines)}/15 bars)", style="dim")
+        t.append(f"-- ({len(S.klines)}/7 bars)", style="dim")
     t.append("\n")
 
     ch = gate_checks()
@@ -270,7 +316,12 @@ def make_position_text():
         pnl = (mk - S.pos.entry) * S.pos.qty if mk is not None else 0.0
         pct = (mk / S.pos.entry - 1) * 100 if mk is not None and S.pos.entry else 0.0
         st = "green" if pnl >= 0 else "red"
-        p.append(f"{S.pos.side.upper()}  {S.pos.qty:.1f} sh\n", style="bold")
+        p.append(f"{S.pos.side.upper()}  {S.pos.qty:.1f} sh", style="bold")
+        p.append(f"   cost {_usd(S.pos.entry * S.pos.qty)}", style="dim")
+        if mk is not None:
+            p.append(f"   value {_usd(mk * S.pos.qty)}", style="dim")
+        p.append(f"   pays {_usd(S.pos.qty)}", style="green")
+        p.append("\n")
         p.append("  entry ", style="dim")
         p.append(f"{S.pos.entry:.3f}", style="white")
         p.append("   mark ", style="dim")
@@ -281,7 +332,7 @@ def make_position_text():
         else:
             p.append("--\n", style="dim")
 
-        pr = PRESETS.get(S.preset, PRESETS["SCALP"])
+        pr = effective_preset(S.preset, S.risk)
         stop_px = S.pos.entry if S.pos.locked else S.pos.entry * (1 - pr["stop"])
         p.append("  stop ", style="dim")
         if not S.stop_on:
@@ -315,7 +366,7 @@ def make_position_text():
     else:
         p.append("\n", style="dim")
 
-    pr = PRESETS.get(S.preset, PRESETS["SCALP"])
+    pr = effective_preset(S.preset, S.risk)
     if not S.stop_on:
         stop_state = "OFF"
     elif pr["stop"] <= 0:
@@ -357,7 +408,8 @@ def make_trades_text():
     for tr in S.trades[:12]:
         c = "green" if tr["pnl"] >= 0 else "red"
         t.append(f"{tr['ts']}  ", style="dim")
-        t.append(f"{tr['side'].upper():<4}  ", style="bold")
+        t.append(f"{tr['side'].upper():<4} ", style="bold")
+        t.append(f"{tr.get('mode', ''):<1}  ", style="dim")
         t.append(f"{tr['entry']:.3f} -> {tr['exit']:.3f}  ", style="dim")
         t.append(f"{tr['pct'] * 100:+6.1f}%  ", style=c)
         t.append(f"${tr['pnl']:+6.2f}", style=c)

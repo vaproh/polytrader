@@ -59,4 +59,32 @@ def test_changing_preset_keeps_the_stake(tmp_path, monkeypatch):
 
     assert S.preset == "TIGHT"
     assert S.stake == 8
-    assert json.loads(path.read_text()) == {"preset": "TIGHT", "stake": 8}
+    assert json.loads(path.read_text()) == {
+        "preset": "TIGHT", "stake": 8, "risk": {}}
+
+
+def test_risk_overrides_are_local_and_per_preset():
+    from polytrader.config import effective_preset
+
+    risk = {"SCALP": {"stop": 0.10, "tp": 0.60}, "FREE": {"stop": 0.05}}
+
+    scalp = effective_preset("SCALP", risk)
+    assert scalp["stop"] == 0.10
+    assert scalp["tp"] == 0.60
+    assert scalp["be"] == 0.30  # untouched leg stays on the base preset
+
+    runner = effective_preset("RUNNER", risk)
+    assert runner == {"stop": 0.25, "tp": 1.00, "be": 0.40}
+
+    free = effective_preset("FREE", risk)
+    assert free["stop"] == 0.05
+    assert free["tp"] == 0.0
+
+
+def test_bad_risk_overrides_fall_back_to_base():
+    from polytrader.config import effective_preset
+
+    assert effective_preset("SCALP", {"SCALP": {"stop": -1, "tp": "x"}}) == {
+        "stop": 0.20, "tp": 0.50, "be": 0.30}
+    assert effective_preset("SCALP", None)["stop"] == 0.20
+    assert effective_preset("NOPE", {})["stop"] == 0.20

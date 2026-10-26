@@ -6,10 +6,11 @@ import time
 
 from rich.text import Text
 from textual.app import App, ComposeResult
-from textual.containers import Horizontal
-from textual.widgets import Footer, Header, Static
+from textual.containers import Horizontal, Vertical
+from textual.screen import ModalScreen
+from textual.widgets import Button, Footer, Header, Input, Label, Static
 
-from ..config import PRESETS, save_cfg
+from ..config import PRESETS, effective_preset, save_cfg
 from ..detector import recompute_detector, twap60
 from ..engine import exit_decision, settle_position
 from ..feeds.basis import basis_loop
@@ -27,18 +28,192 @@ class Panel(Static):
     pass
 
 
+def parse_amount(raw: str) -> float:
+    """Parse a typed dollar amount, rounded to cents. Raises ValueError."""
+    cleaned = raw.strip().replace("$", "").replace(",", "")
+    if not cleaned:
+        raise ValueError("enter an amount")
+    try:
+        value = float(cleaned)
+    except ValueError:
+        raise ValueError("enter a number, e.g. 12.50") from None
+    value = round(value, 2)
+    if value <= 0:
+        raise ValueError("amount must be at least $0.01")
+    if value > 1_000_000:
+        raise ValueError("amount is too large")
+    return value
+
+
+class AmountScreen(ModalScreen[float | None]):
+    """Small modal for a custom dollar stake."""
+
+    BINDINGS = [("escape", "cancel", "cancel")]
+
+    CSS = """
+    AmountScreen { align: center middle; background: #000000; }
+    #amount-dialog { width: 48; height: auto; border: round #666666;
+                     background: #111111; padding: 1 2; }
+    #amount-title { text-style: bold; }
+    #amount-hint { color: #888888; }
+    #amount-error { color: #ff5555; height: 1; }
+    #amount-input { width: 100%; }
+    #amount-buttons { height: auto; align-horizontal: right; }
+    """
+
+    def __init__(self, current: float):
+        super().__init__()
+        self.current = current
+
+    def compose(self):
+        with Vertical(id="amount-dialog"):
+            yield Label("Buy amount (USD)", id="amount-title")
+            yield Label(self._hint(), id="amount-hint")
+            yield Input(value=f"{self.current:g}", placeholder="5.00",
+                        id="amount-input")
+            yield Label("", id="amount-error")
+            with Horizontal(id="amount-buttons"):
+                yield Button("Set", variant="primary", id="ok")
+                yield Button("Cancel", id="cancel")
+
+    def on_mount(self):
+        inp = self.query_one("#amount-input", Input)
+        inp.focus()
+        inp.select_all()
+
+    def _hint(self):
+        base = "exchange minimum ~$1 -- use $2+ to be safe"
+        if not S.live:
+            return f"paper mode -- no real cash. {base}"
+        cash = f"${S.balance:,.2f}" if S.balance is not None else "--"
+        cap = getattr(S.broker, "max_usdc", 0.0) if S.broker else 0.0
+        cap_s = f"${cap:,.2f}" if cap > 0 else "none"
+        return f"cash {cash}   per-order cap {cap_s}. {base}"
+
+    def _error(self, msg):
+        self.query_one("#amount-error", Label).update(msg)
+
+    def _submit(self):
+        try:
+            amount = parse_amount(self.query_one("#amount-input", Input).value)
+        except ValueError as e:
+            self._error(str(e))
+            return
+        if S.live and S.balance is not None and amount > S.balance + 1e-9:
+            self._error(f"over cash balance ${S.balance:,.2f}")
+            return
+        cap = getattr(S.broker, "max_usdc", 0.0) if S.broker else 0.0
+        if S.live and cap > 0 and amount > cap + 1e-9:
+            self._error(f"over per-order cap ${cap:,.2f}")
+            return
+        self.dismiss(amount)
+
+    def on_input_submitted(self, _):
+        self._submit()
+
+    def on_button_pressed(self, event):
+        if event.button.id == "ok":
+            self._submit()
+        else:
+            self.dismiss(None)
+
+    def action_cancel(self):
+        self.dismiss(None)
+
+
+def parse_percent(raw: str, cap: float) -> float:
+    """Parse a typed percent into a fraction. Raises ValueError."""
+    cleaned = raw.strip().replace("%", "")
+    if not cleaned:
+        raise ValueError("enter a number, 0 disables")
+    try:
+        value = float(cleaned)
+    except ValueError:
+        raise ValueError("enter a number, e.g. 25") from None
+    if value < 0 or value > cap:
+        raise ValueError(f"0 to {cap:g}")
+    return value / 100
+
+
+class RiskScreen(ModalScreen[tuple[float, float] | None]):
+    """Small modal for per-preset stop and take-profit percents."""
+
+    BINDINGS = [("escape", "cancel", "cancel")]
+
+    CSS = """
+    RiskScreen { align: center middle; background: #000000; }
+    #risk-dialog { width: 52; height: auto; border: round #666666;
+                   background: #111111; padding: 1 2; }
+    #risk-title { text-style: bold; }
+    #risk-hint { color: #888888; }
+    #risk-error { color: #ff5555; height: 1; }
+    #risk-buttons { height: auto; align-horizontal: right; }
+    """
+
+    def __init__(self, preset: str, stop: float, tp: float):
+        super().__init__()
+        self.preset = preset
+        self.stop = stop
+        self.tp = tp
+
+    def compose(self):
+        with Vertical(id="risk-dialog"):
+            yield Label(f"Risk for {self.preset} (0 disables)", id="risk-title")
+            yield Label("stop and take profit move together per preset; "
+                        "other presets keep their own numbers", id="risk-hint")
+            yield Label("stop %", id="risk-stop-label")
+            yield Input(value=f"{self.stop * 100:g}", placeholder="20",
+                        id="risk-stop")
+            yield Label("take profit %", id="risk-tp-label")
+            yield Input(value=f"{self.tp * 100:g}", placeholder="50",
+                        id="risk-tp")
+            yield Label("", id="risk-error")
+            with Horizontal(id="risk-buttons"):
+                yield Button("Set", variant="primary", id="ok")
+                yield Button("Cancel", id="cancel")
+
+    def on_mount(self):
+        inp = self.query_one("#risk-stop", Input)
+        inp.focus()
+        inp.select_all()
+
+    def _error(self, msg):
+        self.query_one("#risk-error", Label).update(msg)
+
+    def _submit(self):
+        try:
+            stop = parse_percent(self.query_one("#risk-stop", Input).value, 99)
+            tp = parse_percent(self.query_one("#risk-tp", Input).value, 1000)
+        except ValueError as e:
+            self._error(str(e))
+            return
+        self.dismiss((stop, tp))
+
+    def on_input_submitted(self, _):
+        self._submit()
+
+    def on_button_pressed(self, event):
+        if event.button.id == "ok":
+            self._submit()
+        else:
+            self.dismiss(None)
+
+    def action_cancel(self):
+        self.dismiss(None)
+
+
 class TraderApp(App):
     TITLE = "polytrader"
     SUB_TITLE = "BTC 5m up/down"
     CSS = """
     Screen { background: #000000; }
-    #status { height: 3; }
+    #status { height: 4; }
     #window { height: 8; }
-    #books { height: 5; }
+    #books { height: 6; }
+    #alerts { height: 7; }
     #duo { height: 10; }
     #signal { width: 2fr; height: 100%; }
     #pos { width: 1fr; height: 100%; }
-    #alerts { height: 7; }
     #log { height: 1fr; }
     .box { border: round #444444; padding: 0 1; }
     """
@@ -54,6 +229,9 @@ class TraderApp(App):
         ("4", "stake(4)"), ("5", "stake(5)"), ("6", "stake(6)"),
         ("7", "stake(7)"), ("8", "stake(8)"), ("9", "stake(9)"),
         ("o", "stake_cycle", "size up"),
+        ("a", "amount", "amount"),
+        ("e", "risk", "risk"),
+        ("b", "toggle_bell", "bell"),
         ("p", "pause", "pause"),
         ("r", "reload", "reload"),
         ("L", "toggle_live", "paper/live"),
@@ -74,6 +252,7 @@ class TraderApp(App):
 
     def on_mount(self):
         asyncio.create_task(self._seed_klines())
+        asyncio.create_task(self._balance_loop())
         self.set_interval(0.10, self.refresh_view)      # paint: 10 FPS
         self.set_interval(0.033, self.tick_view)        # 30 Hz: detect + paint
         asyncio.create_task(self._boot())
@@ -89,14 +268,46 @@ class TraderApp(App):
 
     # ---- keys
     def action_stake(self, n):
-        S.stake = n
-        save_cfg({"preset": S.preset, "stake": n})
-        S.msg = f"stake ${n}"
+        S.stake = float(n)
+        save_cfg({"preset": S.preset, "stake": S.stake, "risk": S.risk})
+        S.msg = f"stake ${S.stake:,.2f}"
 
     def action_stake_cycle(self):
-        S.stake = 10 if S.stake >= 9 else S.stake + 1
-        save_cfg({"preset": S.preset, "stake": S.stake})
-        S.msg = f"stake ${S.stake}"
+        S.stake = round(S.stake + 1, 2)
+        save_cfg({"preset": S.preset, "stake": S.stake, "risk": S.risk})
+        S.msg = f"stake ${S.stake:,.2f}"
+
+    def action_amount(self):
+        def apply(value):
+            if value is None:
+                return
+            S.stake = value
+            save_cfg({"preset": S.preset, "stake": value, "risk": S.risk})
+            S.msg = f"stake ${value:,.2f}"
+            self.refresh_view()
+
+        self.push_screen(AmountScreen(S.stake), apply)
+
+    def action_risk(self):
+        pr = effective_preset(S.preset, S.risk)
+
+        def apply(value):
+            if value is None:
+                return
+            stop, tp = value
+            S.risk = dict(S.risk)
+            S.risk[S.preset] = {"stop": stop, "tp": tp}
+            save_cfg({"preset": S.preset, "stake": S.stake, "risk": S.risk})
+            S.msg = (f"{S.preset} risk: stop {stop * 100:.0f}%  "
+                     f"tp {tp * 100:.0f}%")
+            self.refresh_view()
+
+        self.push_screen(RiskScreen(S.preset, pr["stop"], pr["tp"]), apply)
+
+    def action_toggle_bell(self):
+        S.bell = not S.bell
+        S.msg = f"bell {'ON' if S.bell else 'OFF'}"
+        self.refresh_view()
 
     def action_pause(self):
         S.paused = not S.paused
@@ -127,8 +338,8 @@ class TraderApp(App):
 
     def _set_preset(self, name):
         S.preset = name
-        save_cfg({"preset": name, "stake": S.stake})
-        pr = PRESETS[name]
+        save_cfg({"preset": name, "stake": S.stake, "risk": S.risk})
+        pr = effective_preset(name, S.risk)
         S.msg = (f"preset {name}: stop {pr['stop']*100:.0f}%  "
                  f"tp {pr['tp']*100:.0f}%  be {pr['be']*100:.0f}%")
         self.refresh_view()
@@ -152,6 +363,9 @@ class TraderApp(App):
         if S.pos.side:
             S.msg = f"already {S.pos.side.upper()} -- s to sell first"
             return
+        if S.stake <= 0:
+            S.msg = "no amount set -- press a first"
+            return
         bk = cur_book(side)
         if not bk or not bk.best_ask():
             S.msg = "no ask on that side"
@@ -174,10 +388,11 @@ class TraderApp(App):
             # Do NOT block the render loop on signing + POST. Fire it in the
             # background and paint "SENDING" immediately.
             S.busy = True
-            S.msg = f"SENDING {side.upper()} ${S.stake} @ {ask:.3f}"
+            S.msg = f"SENDING {side.upper()} ${S.stake:,.2f} @ {ask:.3f}"
             asyncio.create_task(self._live_buy(side, ask, qty))
         else:
-            S.msg = (f"PAPER BUY {side.upper()} {qty:.1f}sh @ {ask:.3f} (${S.stake})")
+            S.msg = (f"PAPER BUY {side.upper()} {qty:.1f}sh @ {ask:.3f} "
+                     f"(${S.stake:,.2f})")
             S.pos.side = side
             S.pos.qty = qty
             S.pos.entry = ask
@@ -231,6 +446,13 @@ class TraderApp(App):
             return
         if bal is not None:
             S.balance = bal
+
+    async def _balance_loop(self):
+        """Keep the cash line current without hitting the API on every paint."""
+        while True:
+            if not S.busy:
+                await self._refresh_balance()
+            await asyncio.sleep(10.0)
 
     def action_sell(self):
         if not S.pos.side:
@@ -343,6 +565,14 @@ class TraderApp(App):
                 S.twap_src = "proxy"
         if not S.paused:
             recompute_detector()
+
+        if S.bell_pending:
+            S.bell_pending = False
+            if S.bell:
+                try:
+                    self.bell()
+                except Exception:
+                    pass
 
         self._set("#status", make_status_text())
         self._set("#window", make_window_text())

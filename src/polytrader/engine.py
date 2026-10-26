@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import time
 
-from .config import PRESETS
+from .config import effective_preset
 from .detector import twap60
 from .state import S, mark_price
 
@@ -22,14 +22,21 @@ def settle_position(reason="", px=None, qty=None):
     S.trades.insert(0, {"side": S.pos.side, "entry": S.pos.entry, "exit": px,
                         "qty": q, "pnl": pnl,
                         "pct": (px / S.pos.entry - 1) if S.pos.entry else 0.0,
-                        "ts": time.strftime("%H:%M:%S"), "reason": reason})
+                        "ts": time.strftime("%H:%M:%S"), "reason": reason,
+                        "mode": "L" if S.live else "P"})
     del S.trades[200:]
     S.pos.qty -= q
-    if S.pos.qty <= 1e-9:
+    # Orders round shares to 2dp, so a remainder below half a hundredth can
+    # never be sent: the SDK refuses it as "shares must be a positive number".
+    # Absorb the dust instead of leaving a 0.0-share position that blocks the
+    # next buy and fails every sell.
+    if S.pos.qty <= 1e-9 or round(S.pos.qty, 2) == 0:
         S.pos.clear()
         S.msg = f"closed {reason}"
     else:
         S.msg = f"partial {reason}: {q:.1f}sh @ {px:.3f}"
+    S.flash_until = time.time() + 2.0
+    S.bell_pending = True
 
 
 def roll_to_window(ws, toks, px=None):
@@ -64,7 +71,7 @@ def exit_decision(entry, mark, preset, stop_on=True, locked=False):
     Order matters: breakeven arms first, then TP, then the stop. If TP and the
     stop could both fire on one tick, TP wins -- you were in profit.
     """
-    pr = PRESETS.get(preset, PRESETS["SCALP"])
+    pr = effective_preset(preset, S.risk)
     if pr["be"] > 0 and not locked and mark >= entry * (1 + pr["be"]):
         locked = True
     if pr["tp"] > 0 and mark >= entry * (1 + pr["tp"]):

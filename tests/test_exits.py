@@ -1,6 +1,8 @@
 """Exit state machine: the money rules, with no app and no network."""
 from __future__ import annotations
 
+import time
+
 import pytest
 
 from polytrader.engine import exit_decision, settle_position
@@ -121,6 +123,49 @@ def test_a_partial_close_keeps_the_rest_open(S):
 
     assert S.pos.side == ""
     assert len(S.trades) == 2
+
+
+def test_settle_tags_the_mode_and_rings_the_bell(S):
+    from polytrader.engine import settle_position
+
+    S.live = True
+    S.pos.side = "up"
+    S.pos.qty = 10.0
+    S.pos.entry = 0.40
+    S.bell_pending = False
+    S.tokens = {"up": "TOK"}
+    S.books = {"TOK": Book(bids={0.50: 100.0})}
+
+    settle_position("sold")
+
+    assert S.trades[0]["mode"] == "L"
+    assert S.bell_pending is True
+    assert S.flash_until > time.time()
+
+    S.live = False
+    S.pos.side = "up"
+    S.pos.qty = 10.0
+    S.pos.entry = 0.40
+
+    settle_position("sold")
+
+    assert S.trades[0]["mode"] == "P"
+
+
+def test_dust_the_exchange_cannot_sell_is_absorbed(S):
+    from polytrader.engine import settle_position
+
+    S.tokens = {"up": "TOK"}
+    S.books = {"TOK": Book(bids={0.50: 100.0})}
+    S.pos.side = "up"
+    S.pos.qty = 2.5
+    S.pos.entry = 0.40
+
+    settle_position("sold", 0.50, 2.496)
+
+    assert S.pos.side == ""
+    assert S.pos.qty == 0.0
+    assert S.trades[0]["qty"] == pytest.approx(2.496)
 
 
 def test_secs_left_counts_down_from_the_window_open(S):

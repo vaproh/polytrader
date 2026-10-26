@@ -5,7 +5,7 @@ import time
 from collections import deque
 from dataclasses import dataclass, field
 
-from .config import PRESETS, load_cfg
+from .config import PRESETS, load_cfg, load_risk
 
 
 @dataclass
@@ -67,7 +67,7 @@ class State:
         self.trades: list[dict] = []
         self.paused = False
         self.live = False
-        self.stake = 5
+        self.stake = 0.0  # 0 means disarmed: u/d refuse until an amount is set
         self.regime = "?"
         self.rates = {}
         self.metrics = {}
@@ -98,7 +98,12 @@ class State:
         self.cfg = load_cfg()
         if self.cfg.get("preset") in PRESETS:
             self.preset = self.cfg["preset"]
-        self.stake = int(self.cfg.get("stake", self.stake))
+        try:
+            stake = float(self.cfg.get("stake", self.stake))
+            if stake >= 0:
+                self.stake = stake
+        except (TypeError, ValueError):
+            pass
         self.book_dirty = False
         self.last_book_paint = 0.0
         self.broker = None
@@ -107,6 +112,11 @@ class State:
         self.prefetch_inflight: set = set()
         self.balance = None
         self.funder = ""
+        self.risk = load_risk(self.cfg)  # local per-preset stop/tp overrides
+        self.bell = True          # terminal bell on every booked close
+        self.bell_pending = False  # engine asks, refresh_view rings
+        self.flash_until = 0.0    # status line highlights a fresh close
+        self.book_ts = 0.0        # last CLOB message or REST book fill
 
 
 S = State()
