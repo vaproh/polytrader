@@ -60,6 +60,7 @@ def roll_to_window(ws, toks, px=None):
     S.twap = S.strike
     S.twap_src = "proxy"
     S.twap_ts = 0.0
+    S.twap_data_ts = 0.0
     S.mid_hist.clear()
     S.books.clear()
     S.msg = f"window {ws}"
