@@ -193,3 +193,13 @@ def test_rsi_fast_reads_the_tape_direction():
     S.btc_hist.extend((2000.0 + i * 0.1, 80800.0 - i) for i in range(800))
     assert detector.rsi_fast() < 40
     S.btc_hist.clear()
+
+
+def test_rsi_fast_reads_one_second_buckets():
+    S.btc_hist.clear()
+    S.btc_hist.extend((2000.0 + i, 80000.0 + i * 10) for i in range(20))
+    assert detector.rsi_fast(14, 1.0) > 60
+    S.btc_hist.clear()
+    S.btc_hist.extend((2000.0 + i, 80200.0 - i * 10) for i in range(20))
+    assert detector.rsi_fast(14, 1.0) < 40
+    S.btc_hist.clear()

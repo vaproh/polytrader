@@ -125,6 +125,17 @@ def test_signal_prints_every_rsi_with_one_decimal(S):
     assert "24:100.0" in text
 
 
+def test_signal_shows_per_second_rsi(S):
+    S.btc_hist.clear()
+    S.btc_hist.extend((2000.0 + i, 80000.0 + i * 10) for i in range(20))
+
+    assert "1s:--" not in panels.make_signal_text().plain
+
+    S.btc_hist.clear()
+
+    assert "1s:--" in panels.make_signal_text().plain
+
+
 def test_trades_show_the_close_reason(S):
     S.trades = [{
         "ts": "20:02:17", "side": "up", "entry": 0.36, "exit": 0.07,
