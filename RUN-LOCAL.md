@@ -83,7 +83,7 @@ credential check, not a signing test. The header reads `DRY`, not `LIVE`.
 uv run polytrader --dry --stake 1
 ```
 
-You should see a `DRY buy $1.00 @<=0.43` style line after pressing `u`.
+You should see a `DRY buy $1.00 @<=43.0¢` style line after pressing `u`.
 The `CASH` line shows the account collateral, the next order, and the cash left.
 
 ## 6. Live
