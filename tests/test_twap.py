@@ -53,7 +53,7 @@ def test_fair_value_uses_the_twap_not_spot(S):
     now = time.time()
     S.btc_hist.clear()
     for i in range(200):
-        S.btc_hist.append((now - 100 + i * 0.5, 80000.0 + (i % 2)))
+        S.btc_hist.append((now - 100 + i * 0.5, 80000.0 + i * 0.1))
     S.klines = [80000.0 + (i % 2) for i in range(40)]
     S.strike = 80000.0
     S.twap = 80000.0
