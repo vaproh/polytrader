@@ -7,6 +7,7 @@ import time
 
 from .. import poly
 from ..state import S, Book
+from .flow import record_ws
 
 CLOB_WS = "wss://ws-subscriptions-clob.polymarket.com/ws/market"
 
@@ -55,6 +56,7 @@ def handle_clob(m):
             bk.last_trade = float(m.get("price"))
         except Exception:
             pass
+        record_ws(m, S.tokens)
 
 
 async def clob_loop():

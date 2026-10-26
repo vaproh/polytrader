@@ -19,6 +19,37 @@ def _reset(ws):
         S.flow = []
 
 
+def record(ts, side, usd, px, ws=None):
+    """Append one fill to the tape. Socket and REST rows share
+    second-granularity keys so the same fill arriving both ways shows once."""
+    _reset(ws if ws is not None else S.ws_start)
+    key = (int(ts), side, round(usd, 2))
+    if key in _seen:
+        return False
+    _seen.add(key)
+    S.flow.append({"ts": ts, "side": side, "usd": usd, "px": px})
+    S.flow.sort(key=lambda f: f["ts"], reverse=True)
+    del S.flow[15:]
+    if len(_seen) > 500:
+        _seen.clear()
+    return True
+
+
+def record_ws(m, tokens):
+    """One socket last_trade_price message onto the tape. Never raises."""
+    try:
+        aid = m.get("asset_id")
+        side = {v: k for k, v in tokens.items()}.get(aid) if aid else None
+        if side not in ("up", "dn"):
+            return False
+        px = float(m["price"])
+        size = float(m["size"])
+        ts = float(m["timestamp"]) / 1000.0
+        return record(ts, side, size * px, px)
+    except Exception:
+        return False
+
+
 async def _poll():
     """One tape refresh. Split out so tests can drive it without the loop."""
     try:
@@ -41,21 +72,16 @@ async def _poll():
                 return
         _reset(ws)
         for f in poly.recent_trades(S.cond):
-            key = (f["ts"], f["side"], f["usd"])
-            if key in _seen:
-                continue
-            _seen.add(key)
-            S.flow.append(f)
-        S.flow.sort(key=lambda f: f["ts"], reverse=True)
-        del S.flow[15:]
-        if len(_seen) > 500:
-            _seen.clear()
+            record(f["ts"], f["side"], f["usd"], f["px"], ws)
     except Exception:
         pass
 
 
 async def flow_loop():
-    """Poll the event's recent fills every few seconds."""
+    """Poll the event's recent fills every few seconds.
+
+    Backfill only: live fills land instantly off the market socket.
+    The poll catches anything the socket missed while it reconnects."""
     while True:
         await _poll()
         await asyncio.sleep(5.0)

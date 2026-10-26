@@ -88,3 +88,56 @@ def test_alerts_show_the_flow_tape(S):
     assert "FLOW" in text
     assert "+$297" in text
     assert "+$24" in text
+
+
+def test_socket_fill_lands_on_the_tape(S):
+    from polytrader.feeds import clob as clobmod
+
+    flowmod._seen.clear()
+    S.ws_start = 1793035800
+    S.tokens = {"up": "U", "dn": "D"}
+    S.flow = []
+
+    clobmod.handle_clob({
+        "event_type": "last_trade_price", "asset_id": "U",
+        "price": "0.5", "size": "10.0", "timestamp": "1793035900100",
+    })
+
+    assert [(f["side"], f["usd"]) for f in S.flow] == [("up", 5.0)]
+
+
+def test_socket_fill_for_unknown_token_is_ignored(S):
+    from polytrader.feeds import clob as clobmod
+
+    flowmod._seen.clear()
+    S.ws_start = 1793035800
+    S.tokens = {"up": "U", "dn": "D"}
+    S.flow = []
+
+    clobmod.handle_clob({
+        "event_type": "last_trade_price", "asset_id": "ZZZ",
+        "price": "0.5", "size": "10.0", "timestamp": "1793035900100",
+    })
+    clobmod.handle_clob({"event_type": "last_trade_price"})
+
+    assert S.flow == []
+
+
+def test_socket_and_rest_rows_dedupe_to_one_fill(S, monkeypatch):
+    flowmod._seen.clear()
+    S.ws_start = 1793035800
+    S.cond = "0xcond"
+    S.tokens = {"up": "U", "dn": "D"}
+    S.flow = []
+    monkeypatch.setattr(polymod, "recent_trades", lambda cond: [
+        {"ts": 1793035900.0, "side": "up", "usd": 7.07, "px": 0.99},
+    ])
+
+    asyncio.run(flowmod._poll())
+    from polytrader.feeds import clob as clobmod
+    clobmod.handle_clob({
+        "event_type": "last_trade_price", "asset_id": "U",
+        "price": "0.99", "size": "7.14", "timestamp": "1793035900752",
+    })
+
+    assert [(f["side"], f["usd"]) for f in S.flow] == [("up", 7.07)]
