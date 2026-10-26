@@ -87,8 +87,3 @@ def fmt_leg(leg, sign="+"):
     if leg["by"] == "usd":
         return f"{sign}${leg['v']:.2f}"
     return f"{sign}{leg['v'] * 100:.0f}%"
-
-
-def load_risk(cfg):
-    risk = (cfg or {}).get("risk")
-    return risk if isinstance(risk, dict) else {}
