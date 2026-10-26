@@ -240,7 +240,7 @@ class TraderApp(App):
     #status { height: 4; }
     #window { height: 9; }
     #books { height: 8; }
-    #alerts { height: 7; }
+    #alerts { height: 8; }
     #duo { height: 10; }
     #signal { width: 2fr; height: 100%; }
     #pos { width: 1fr; height: 100%; }
