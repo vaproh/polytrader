@@ -115,6 +115,7 @@ and starts in paper mode with the reason printed.
 | `p` | pause the detector |
 | `r` | reload the window |
 | `k` | stop arm/disarm |
+| `n` | switch to the next window (last 60s, flat, book live) |
 | `T` | exits (tp+stop) on/off |
 | `L` | toggle paper / live |
 | `q` | quit |

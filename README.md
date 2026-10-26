@@ -171,10 +171,11 @@ panel shows both: `TWAP NOW` decides UP/DOWN against the beat, and `SPOT
 (binance)` is context only. The status and window panels label whether the beat
 and TWAP came from `chainlink` or the fallback `proxy`.
 
-Under 60 seconds left with the next book live, the terminal rolls early:
-the window panel counts `opens in`, the books panel previews the next
-market, and `u`/`d`/`s` trade it at once. Holding a position keeps the old
-window until the boundary settles it.
+Under 60 seconds left with the next book live, `n` flips the terminal to
+the next window early: the window panel counts `opens in`, the books panel
+previews the next market, and `u`/`d`/`s` trade it at once. Holding a
+position keeps the old window until the boundary settles it. Nothing
+switches on its own.
 
 First ~31 seconds of each window show `WARMUP`: the detector needs about 31 s
 of book history before it names a regime. A brand-new window also has an empty book for

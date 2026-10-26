@@ -82,10 +82,11 @@ def _absorb_next(ws):
 
 
 def _early_roll(ws):
-    """Roll into the next window up to 60s early, once its book is live.
+    """Roll into the next window early, once its book is live.
 
     Flat only: holding a current-window position keeps the old window until
-    the boundary settles it. Returns True when it rolled.
+    the boundary settles it. The caller enforces the last-minute gate.
+    Returns True when it rolled.
     """
     if S.pos.side or S.window_loading:
         return False
@@ -113,12 +114,9 @@ async def window_loop():
         # warm the next window a minute ahead so rollover costs no round-trip
         if left <= 60:
             asyncio.create_task(_prefetch(ws + 300))
-        # ...and keep its books warm for the preview and the early switch
+        # ...and keep its books warm for the preview and the manual switch
         if left <= 90 and now - S.next_ts > 10:
             asyncio.create_task(_refresh_next(ws + 300))
-        # under a minute left with a live next book: trade the next window
-        if left <= 60 and _early_roll(ws):
-            pass  # msg set inside; the rollover block below stands down
 
         if not S.window_loading and ws > S.ws_start:
             S.window_loading = True
