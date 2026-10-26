@@ -111,6 +111,8 @@ and starts in paper mode with the reason printed.
 | `1`..`9` | stake $1..$9 |
 | `a` | custom dollar amount |
 | `o` | stake +$1 |
+| `e` | stop/tp for this preset (saved locally, per preset) |
+| `b` | bell on/off |
 | `p` | pause the detector |
 | `r` | reload the window |
 | `L` | toggle paper / live |
@@ -122,6 +124,10 @@ The books show how many shares the current stake buys at each ask.
 The exchange rejects marketable orders under ~$1. After it truncates sub-cent
 digits and floors the share count, a $1.00 stake can evaluate to $0.98 and get
 refused. Start at $2 or more; the amount prompt says the same.
+
+`e` edits the stop and take-profit percents for the current preset only
+(0 disables). They persist in `~/.polytrader.json`, never in the repo, and
+each preset keeps its own numbers.
 
 ## Safety properties built in
 

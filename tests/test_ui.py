@@ -259,6 +259,125 @@ def test_position_shows_cost_and_value(S):
 
     assert "cost $2.90" in text
     assert "value $3.00" in text
+    assert "pays $10.00" in text
+
+
+def test_window_shows_a_progress_bar(S):
+    S.slug = "btc-updown-5m-1793025000"
+    S.ws_start = int(time.time()) - 150
+
+    text = panels.make_window_text().plain
+
+    assert "50%" in text
+
+
+def test_status_flashes_a_fresh_close(S):
+    S.flash_until = time.time() + 2.0
+
+    assert "FILLED" in panels.make_status_text().plain
+
+    S.flash_until = time.time() - 1.0
+
+    assert "FILLED" not in panels.make_status_text().plain
+
+
+def test_books_show_fresh_or_stale(S):
+    import time as _time
+
+    S.tokens = {"up": "U", "dn": "D"}
+    S.books = {
+        "U": Book(bids={0.12: 2940}, asks={0.13: 410}),
+        "D": Book(bids={0.87: 410}, asks={0.88: 2940}),
+    }
+    S.book_ts = _time.time()
+
+    assert "fresh" in panels.make_books_text().plain
+
+    S.book_ts = _time.time() - 30
+
+    assert "stale" in panels.make_books_text().plain
+
+
+def test_trades_show_the_mode_letter(S):
+    S.trades = [{
+        "ts": "20:02:17", "side": "up", "entry": 0.36, "exit": 0.07,
+        "qty": 13.9, "pnl": -4.03, "pct": -0.806, "reason": "sold",
+        "mode": "L",
+    }]
+
+    text = panels.make_trades_text().plain
+
+    assert " L " in text
+
+
+def test_parse_percent_accepts_plain_numbers_and_signs():
+    from polytrader.ui.app import parse_percent
+
+    assert parse_percent("25", 99) == 0.25
+    assert parse_percent("20%", 99) == 0.20
+    assert parse_percent("0", 99) == 0.0
+
+
+def test_parse_percent_rejects_out_of_range():
+    import pytest
+
+    from polytrader.ui.app import parse_percent
+
+    for raw in ["", "abc", "-5", "100"]:
+        with pytest.raises(ValueError):
+            parse_percent(raw, 99)
+
+
+def test_bell_toggle_flips_the_flag(S):
+    from polytrader.ui.app import TraderApp
+
+    app = object.__new__(TraderApp)
+    S.bell = True
+
+    TraderApp.action_toggle_bell(app)
+    assert S.bell is False
+
+    TraderApp.action_toggle_bell(app)
+    assert S.bell is True
+
+
+def test_risk_modal_saves_per_preset_numbers(S, tmp_path, monkeypatch):
+    import json
+
+    from polytrader import config
+    from polytrader.ui import app as ui
+
+    path = tmp_path / "cfg.json"
+    monkeypatch.setattr(config, "CFG_PATH", str(path))
+    S.preset = "FREE"
+    S.risk = {}
+
+    async def noop(*_a, **_k):
+        return None
+
+    for name in ("binance_loop", "window_loop", "chainlink_loop",
+                 "rest_fallback_loop", "basis_loop", "clob_loop"):
+        monkeypatch.setattr(ui, name, noop)
+    monkeypatch.setattr(ui, "fetch_klines", lambda: [])
+
+    app = ui.TraderApp()
+
+    async def go():
+        async with app.run_test() as pilot:
+            await pilot.press("e")
+            await pilot.pause()
+            stop = app.screen.query_one("#risk-stop", Input)
+            tp = app.screen.query_one("#risk-tp", Input)
+            stop.value = "15"
+            tp.value = "40"
+            await pilot.press("enter")
+            await pilot.pause()
+
+    asyncio.run(go())
+
+    assert S.risk == {"FREE": {"stop": 0.15, "tp": 0.40}}
+    assert json.loads(path.read_text())["risk"] == {"FREE": {
+        "stop": 0.15, "tp": 0.40}}
 
 
 class _ModalHost(App):

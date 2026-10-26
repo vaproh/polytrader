@@ -25,6 +25,7 @@ def _record_tick():
 
 def handle_clob(m):
     S.last_event = time.time()
+    S.book_ts = S.last_event
     now_p = S.last_event
     _record_tick()
     if now_p - S.last_book_paint >= 0.04:
@@ -118,5 +119,6 @@ async def rest_fallback_loop():
                 bk.bids = {bb: b.get("bid_size") or 1.0}
             if not bk.asks:
                 bk.asks = {ba: b.get("ask_size") or 1.0}
+            S.book_ts = time.time()
         if not S.ws_connected:
             S.msg = "clob: REST fallback"

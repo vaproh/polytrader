@@ -36,3 +36,27 @@ def save_cfg(d):
         os.chmod(CFG_PATH, 0o600)
     except Exception:
         pass
+
+
+def effective_preset(name, risk):
+    """Base preset with this preset's local stop/tp overrides applied.
+
+    Overrides live only in the local cfg file, never in the repo, and each
+    preset keeps its own numbers. Bad values fall back to the base preset.
+    """
+    base = dict(PRESETS.get(name, PRESETS["SCALP"]))
+    ov = (risk or {}).get(name, {})
+    if isinstance(ov, dict):
+        for key in ("stop", "tp"):
+            try:
+                v = float(ov.get(key))
+            except (TypeError, ValueError):
+                continue
+            if v >= 0:
+                base[key] = v
+    return base
+
+
+def load_risk(cfg):
+    risk = (cfg or {}).get("risk")
+    return risk if isinstance(risk, dict) else {}

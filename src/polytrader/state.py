@@ -5,7 +5,7 @@ import time
 from collections import deque
 from dataclasses import dataclass, field
 
-from .config import PRESETS, load_cfg
+from .config import PRESETS, load_cfg, load_risk
 
 
 @dataclass
@@ -112,6 +112,11 @@ class State:
         self.prefetch_inflight: set = set()
         self.balance = None
         self.funder = ""
+        self.risk = load_risk(self.cfg)  # local per-preset stop/tp overrides
+        self.bell = True          # terminal bell on every booked close
+        self.bell_pending = False  # engine asks, refresh_view rings
+        self.flash_until = 0.0    # status line highlights a fresh close
+        self.book_ts = 0.0        # last CLOB message or REST book fill
 
 
 S = State()

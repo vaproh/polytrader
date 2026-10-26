@@ -5,7 +5,7 @@ import time
 
 from rich.text import Text
 
-from ..config import PRESETS
+from ..config import effective_preset
 from ..detector import (btc_state, fair_p, gate_checks, rsi_last, vol_window,
                         warnings)
 from ..state import S, cur_book, mark_price, secs_left
@@ -102,6 +102,8 @@ def make_status_text():
     t.append(f"   stake {_usd(S.stake)}", style="yellow")
     if S.paused:
         t.append("   PAUSED", style="bold yellow")
+    if time.time() < S.flash_until:
+        t.append("   ● FILLED", style="bold yellow")
     if S.msg:
         t.append(f"   last: {S.msg}", style="dim")
 
@@ -134,6 +136,8 @@ def make_window_text():
         left = secs_left()
         t.append(f"   closes in {clock(left)}",
                  style="yellow" if left < 30 else "white")
+        done = min(1.0, max(0.0, (300 - left) / 300))
+        t.append(f"  {bar(done)} {done * 100:.0f}%", style="dim")
     t.append("\n")
 
     t.append("PRICE TO BEAT   ", style="dim")
@@ -192,6 +196,12 @@ def make_books_text():
              style="yellow")
     if ua is not None and da is not None:
         b.append(f"   overround {(ua + da - 1) * 100:+.2f}c", style="dim")
+    if S.book_ts:
+        age = time.time() - S.book_ts
+        if age < 3:
+            b.append("   fresh", style="green")
+        else:
+            b.append(f"   {age:.0f}s stale", style="bold yellow")
     b.append("\n")
 
     for side, label in (("up", "UP  "), ("dn", "DOWN")):
@@ -310,6 +320,7 @@ def make_position_text():
         p.append(f"   cost {_usd(S.pos.entry * S.pos.qty)}", style="dim")
         if mk is not None:
             p.append(f"   value {_usd(mk * S.pos.qty)}", style="dim")
+        p.append(f"   pays {_usd(S.pos.qty)}", style="green")
         p.append("\n")
         p.append("  entry ", style="dim")
         p.append(f"{S.pos.entry:.3f}", style="white")
@@ -321,7 +332,7 @@ def make_position_text():
         else:
             p.append("--\n", style="dim")
 
-        pr = PRESETS.get(S.preset, PRESETS["SCALP"])
+        pr = effective_preset(S.preset, S.risk)
         stop_px = S.pos.entry if S.pos.locked else S.pos.entry * (1 - pr["stop"])
         p.append("  stop ", style="dim")
         if not S.stop_on:
@@ -355,7 +366,7 @@ def make_position_text():
     else:
         p.append("\n", style="dim")
 
-    pr = PRESETS.get(S.preset, PRESETS["SCALP"])
+    pr = effective_preset(S.preset, S.risk)
     if not S.stop_on:
         stop_state = "OFF"
     elif pr["stop"] <= 0:
@@ -397,7 +408,8 @@ def make_trades_text():
     for tr in S.trades[:12]:
         c = "green" if tr["pnl"] >= 0 else "red"
         t.append(f"{tr['ts']}  ", style="dim")
-        t.append(f"{tr['side'].upper():<4}  ", style="bold")
+        t.append(f"{tr['side'].upper():<4} ", style="bold")
+        t.append(f"{tr.get('mode', ''):<1}  ", style="dim")
         t.append(f"{tr['entry']:.3f} -> {tr['exit']:.3f}  ", style="dim")
         t.append(f"{tr['pct'] * 100:+6.1f}%  ", style=c)
         t.append(f"${tr['pnl']:+6.2f}", style=c)

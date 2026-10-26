@@ -179,7 +179,7 @@ def test_stake_changes_are_persisted(tmp_path, monkeypatch):
 
     app = object.__new__(TraderApp)
     TraderApp.action_stake(app, 7)
-    assert config.load_cfg() == {"preset": "SCALP", "stake": 7}
+    assert config.load_cfg() == {"preset": "SCALP", "stake": 7, "risk": {}}
 
     TraderApp.action_stake_cycle(app)
     assert S.stake == 8
