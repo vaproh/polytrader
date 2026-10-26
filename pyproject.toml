@@ -1,0 +1,24 @@
+[project]
+name = "polytrader"
+version = "0.1.0"
+description = "Terminal for Polymarket BTC 5-minute up/down markets"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "textual>=8.2",
+    "websockets>=13,<16",
+    "polymarket-client>=0.14,<0.15",
+    "eth-account>=0.13",
+    "rich>=13.0",
+    "pandas>=2.0",
+    "numpy>=2.0",
+]
+
+[dependency-groups]
+dev = ["pytest>=8"]
+
+[tool.uv]
+package = false
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
