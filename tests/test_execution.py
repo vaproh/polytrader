@@ -126,7 +126,7 @@ def test_dry_run_never_touches_the_api(broker):
     broker.dry_run = True
     ok, detail = broker.buy(TOKEN, 5.0, 0.42)
     assert ok is True
-    assert detail.startswith("DRY buy $5.00 @<=0.43")
+    assert detail.startswith("DRY buy $5.00 @<=43.0¢")
     assert broker.fake.calls == []
 
 

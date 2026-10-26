@@ -372,7 +372,7 @@ class TraderApp(App):
             return
         ask = bk.best_ask()
         if ask <= 0.01 or ask >= 0.99:
-            S.msg = f"ask {ask:.2f} outside tradeable band"
+            S.msg = f"ask {ask * 100:.1f}¢ outside tradeable band"
             return
         if secs_left() < 20:
             S.msg = "too close to resolution"
@@ -388,10 +388,10 @@ class TraderApp(App):
             # Do NOT block the render loop on signing + POST. Fire it in the
             # background and paint "SENDING" immediately.
             S.busy = True
-            S.msg = f"SENDING {side.upper()} ${S.stake:,.2f} @ {ask:.3f}"
+            S.msg = f"SENDING {side.upper()} ${S.stake:,.2f} @ {ask * 100:.1f}¢"
             asyncio.create_task(self._live_buy(side, ask, qty))
         else:
-            S.msg = (f"PAPER BUY {side.upper()} {qty:.1f}sh @ {ask:.3f} "
+            S.msg = (f"PAPER BUY {side.upper()} {qty:.1f}sh @ {ask * 100:.1f}¢ "
                      f"(${S.stake:,.2f})")
             S.pos.side = side
             S.pos.qty = qty
@@ -467,7 +467,7 @@ class TraderApp(App):
                 return
             bid = mark_price(S.pos.side) or 0.0
             S.busy = True
-            S.msg = f"SENDING SELL {S.pos.qty:.1f}sh @ {bid:.3f}"
+            S.msg = f"SENDING SELL {S.pos.qty:.1f}sh @ {bid * 100:.1f}¢"
             asyncio.create_task(self._live_sell(bid))
             self.refresh_view()
             return
@@ -509,7 +509,7 @@ class TraderApp(App):
                 return
             S.exit_retry_ts = now + 2.0
             S.busy = True
-            S.msg = f"{reason} -- selling at {mk:.3f}"
+            S.msg = f"{reason} -- selling at {mk * 100:.1f}¢"
             asyncio.create_task(self._live_sell(mk))
         else:
             settle_position(reason)

@@ -64,6 +64,11 @@ def _usd(v):
     return f"${v:,.2f}"
 
 
+def _c(v):
+    """A 0-1 contract price in cents, the way the market quotes it."""
+    return f"{v * 100:.1f}¢"
+
+
 def twap_source():
     """Which feed produced the beat/TWAP, including a stale exact value."""
     if S.twap_src == "chainlink":
@@ -189,13 +194,13 @@ def make_books_text():
 
     b.append("MARKET  ", style="bold")
     b.append("pair ", style="dim")
-    b.append(f"bid {ub + db:.4f}" if ub is not None and db is not None else "bid --",
+    b.append(f"bid {_c(ub + db)}" if ub is not None and db is not None else "bid --",
              style="yellow")
     b.append("   ", style="dim")
-    b.append(f"ask {ua + da:.4f}" if ua is not None and da is not None else "ask --",
+    b.append(f"ask {_c(ua + da)}" if ua is not None and da is not None else "ask --",
              style="yellow")
     if ua is not None and da is not None:
-        b.append(f"   overround {(ua + da - 1) * 100:+.2f}c", style="dim")
+        b.append(f"   overround {(ua + da - 1) * 100:+.1f}¢", style="dim")
     if S.book_ts:
         age = time.time() - S.book_ts
         if age < 3:
@@ -212,9 +217,9 @@ def make_books_text():
         bb, ba = bk.best_bid(), bk.best_ask()
         dbid, dask = bk.depth()
         b.append(f"{label}  ", style="bold white")
-        b.append(f"bid {bb:.2f} x{bk.bid_size():>5.0f}" if bb is not None
+        b.append(f"bid {_c(bb)} x{bk.bid_size():>5.0f}" if bb is not None
                  else "bid  --", style="green")
-        b.append(f"   ask {ba:.2f} x{bk.ask_size():>5.0f}" if ba is not None
+        b.append(f"   ask {_c(ba)} x{bk.ask_size():>5.0f}" if ba is not None
                  else "   ask  --", style="red")
         b.append(f"   depth3c ${dbid * (bb or 0):>6.0f}", style="dim")
         b.append(f" / ${dask * (ba or 0):>5.0f}\n", style="dim")
@@ -256,11 +261,11 @@ def make_signal_text():
         t.append(f" (needs 20 bars, {len(S.klines)}/20)", style="dim")
     if mk is not None:
         t.append("   market ", style="dim")
-        t.append(f"{mk:.2f}", style="white")
+        t.append(f"{_c(mk)}", style="white")
         if fp is not None:
             gap = fp - mk
             t.append("   gap ", style="dim")
-            t.append(f"{gap * 100:+.0f}c", style="dim")
+            t.append(f"{gap * 100:+.1f}¢", style="dim")
     t.append("\n")
 
     r = S.rates or {}
@@ -323,9 +328,9 @@ def make_position_text():
         p.append(f"   pays {_usd(S.pos.qty)}", style="green")
         p.append("\n")
         p.append("  entry ", style="dim")
-        p.append(f"{S.pos.entry:.3f}", style="white")
+        p.append(f"{_c(S.pos.entry)}", style="white")
         p.append("   mark ", style="dim")
-        p.append(f"{mk:.3f}" if mk is not None else "--", style="white")
+        p.append(f"{_c(mk)}" if mk is not None else "--", style="white")
         p.append("   P&L ", style="dim")
         if mk is not None:
             p.append(f"${pnl:+.2f} ({pct:+.1f}%)\n", style=f"bold {st}")
@@ -341,13 +346,13 @@ def make_position_text():
             p.append("none (FREE)", style="dim")
         else:
             label = "BE " if S.pos.locked else ""
-            p.append(f"{label}{stop_px:.3f}", style="red")
+            p.append(f"{label}{_c(stop_px)}", style="red")
             if mk is not None and mk <= stop_px:
                 p.append(" (breached)", style="bold red")
         if pr["tp"] > 0:
             tp_px = S.pos.entry * (1 + pr["tp"])
             p.append("   tp ", style="dim")
-            p.append(f"{tp_px:.3f}" if tp_px <= 0.99 else "unreachable",
+            p.append(f"{_c(tp_px)}" if tp_px <= 0.99 else "unreachable",
                      style="green" if tp_px <= 0.99 else "bold yellow")
         p.append(f"   held {time.time() - S.pos.ts:.0f}s\n", style="dim")
     else:
@@ -410,7 +415,7 @@ def make_trades_text():
         t.append(f"{tr['ts']}  ", style="dim")
         t.append(f"{tr['side'].upper():<4} ", style="bold")
         t.append(f"{tr.get('mode', ''):<1}  ", style="dim")
-        t.append(f"{tr['entry']:.3f} -> {tr['exit']:.3f}  ", style="dim")
+        t.append(f"{_c(tr['entry'])} -> {_c(tr['exit'])}  ", style="dim")
         t.append(f"{tr['pct'] * 100:+6.1f}%  ", style=c)
         t.append(f"${tr['pnl']:+6.2f}", style=c)
         reason = tr.get("reason", "")

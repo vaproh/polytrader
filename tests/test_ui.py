@@ -85,8 +85,10 @@ def test_books_show_both_pair_sums(S):
 
     text = panels.make_books_text().plain
 
-    assert "0.9900" in text
-    assert "1.0100" in text
+    assert "99.0¢" in text
+    assert "101.0¢" in text
+    assert "12.0¢" in text
+    assert "88.0¢" in text
     assert "UP" in text and "DOWN" in text
 
 
@@ -131,6 +133,7 @@ def test_trades_show_the_close_reason(S):
 
     text = panels.make_trades_text().plain
 
+    assert "36.0¢ -> 7.0¢" in text
     assert "sold" in text
 
 
@@ -260,6 +263,7 @@ def test_position_shows_cost_and_value(S):
     assert "cost $2.90" in text
     assert "value $3.00" in text
     assert "pays $10.00" in text
+    assert "29.0¢" in text
 
 
 def test_window_shows_a_progress_bar(S):

@@ -154,14 +154,14 @@ class LiveBroker:
             return False, "unknown tick size -- order refused"
         limit = _snap(min(0.99, ask + SLIPPAGE_TICKS * tick), tick)
         if self.dry_run:
-            return True, f"DRY buy ${usdc:.2f} @<={limit:.3f}"
+            return True, f"DRY buy ${usdc:.2f} @<={limit * 100:.1f}¢"
 
         try:
             resp = self._client.place_market_order(
                 asset_id=token_id, side="BUY", amount=round(usdc, 2),
                 max_spend=round(usdc, 2), max_price=limit, order_type="FAK",
             )
-            ok, detail = self._interpret(resp, f"buy ${usdc:.2f} @<={limit:.3f}")
+            ok, detail = self._interpret(resp, f"buy ${usdc:.2f} @<={limit * 100:.1f}¢")
             if ok and self._record_fill(resp, "BUY") <= 0:
                 return False, f"{detail} -- accepted but nothing filled"
             return ok, detail
@@ -179,13 +179,13 @@ class LiveBroker:
             return False, "unknown tick size -- order refused"
         limit = _snap(max(0.01, bid - SLIPPAGE_TICKS * tick), tick)
         if self.dry_run:
-            return True, f"DRY sell {shares:.2f}sh @>={limit:.3f}"
+            return True, f"DRY sell {shares:.2f}sh @>={limit * 100:.1f}¢"
         try:
             resp = self._client.place_market_order(
                 asset_id=token_id, side="SELL", shares=round(shares, 2),
                 min_price=limit, order_type="FAK",
             )
-            ok, detail = self._interpret(resp, f"sell {shares:.2f}sh @>={limit:.3f}")
+            ok, detail = self._interpret(resp, f"sell {shares:.2f}sh @>={limit * 100:.1f}¢")
             if ok:
                 filled = self._record_fill(resp, "SELL")
                 if filled <= 0:
