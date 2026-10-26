@@ -99,7 +99,7 @@ Slug: `btc-updown-5m-<windowStartUnixTs>`, window = `ts .. ts+300`.
 ## 3. Architecture
 
 ```
-Polymarket price-history API ──► S.strike (beat), S.twap (exact, 2s poll)
+Polymarket price-history API ──► S.strike (beat), S.twap (exact, 1s poll)
 Binance aggTrade WS ──► S.btc, btc_hist, trade_hist (buy/sell volume, CVD)
                               │
              60s mean × USDT/USD ──► fallback when the exact feed is stale

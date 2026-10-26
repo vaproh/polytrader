@@ -12,29 +12,59 @@ from __future__ import annotations
 
 import asyncio
 import datetime
+import http.client
 import json
+import threading
 import time
 import urllib.parse
-import urllib.request
 
 from ..state import S
 
 API = "https://polymarket.com/api/crypto/price-history"
 OPEN_API = "https://polymarket.com/api/crypto/crypto-price"
+HOST = "polymarket.com"
 UA = ("Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
       "(KHTML, like Gecko) Chrome/131.0 Safari/537.36")
+
+_conn: http.client.HTTPSConnection | None = None
+_conn_lock = threading.Lock()
+
+
+def _get(url, timeout=5.0):
+    """GET JSON over one persistent connection; reconnects on failure.
+
+    A fresh TLS handshake to polymarket.com costs ~1s from here, so a new
+    connection per poll would add a handshake to every TWAP update. The
+    connection is shared and recreated only when the server drops it.
+    """
+    global _conn
+    path = url.split(HOST, 1)[1]
+    headers = {"User-Agent": UA, "Accept": "application/json"}
+    with _conn_lock:
+        for attempt in (0, 1):
+            try:
+                if _conn is None:
+                    _conn = http.client.HTTPSConnection(HOST, timeout=timeout)
+                _conn.request("GET", path, headers=headers)
+                resp = _conn.getresponse()
+                body = resp.read()
+                if resp.status != 200:
+                    raise OSError(f"http {resp.status}")
+                return json.loads(body.decode())
+            except Exception:
+                try:
+                    if _conn is not None:
+                        _conn.close()
+                except Exception:
+                    pass
+                _conn = None
+                if attempt == 1:
+                    raise
 
 
 def _iso(ts):
     return datetime.datetime.fromtimestamp(
         ts, datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-
-
-def _get(url, timeout=5.0):
-    req = urllib.request.Request(
-        url, headers={"User-Agent": UA, "Accept": "application/json"})
-    with urllib.request.urlopen(req, timeout=timeout) as r:
-        return json.loads(r.read().decode())
 
 
 def fetch_open(ws, timeout=5.0):
@@ -104,10 +134,10 @@ def apply(ws, data):
 
 
 async def chainlink_loop():
-    """Refresh the exact TWAP every two seconds; the proxy covers failures."""
+    """Refresh the exact TWAP every second; the proxy covers failures."""
     while True:
         ws = S.ws_start
         if ws:
             data = await asyncio.to_thread(fetch, ws)
             apply(ws, data)
-        await asyncio.sleep(2.0)
+        await asyncio.sleep(1.0)
