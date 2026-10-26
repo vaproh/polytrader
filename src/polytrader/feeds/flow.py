@@ -23,8 +23,22 @@ async def _poll():
     """One tape refresh. Split out so tests can drive it without the loop."""
     try:
         ws = S.ws_start
-        if not ws or not S.cond:
+        if not ws:
             return
+        if not S.cond:
+            # fresh start mid-window: the rollover hasn't provided the
+            # event id yet, so fetch it directly instead of staying dark
+            # until the next boundary.
+            try:
+                m = await asyncio.to_thread(
+                    poly.market, f"btc-updown-5m-{ws}")
+            except Exception:
+                return
+            if not m:
+                return
+            S.cond = m.get("condition_id", "")
+            if not S.cond:
+                return
         _reset(ws)
         for f in poly.recent_trades(S.cond):
             key = (f["ts"], f["side"], f["usd"])

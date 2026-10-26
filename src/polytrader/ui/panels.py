@@ -515,6 +515,8 @@ def make_alerts_text():
         for f in S.flow[:10]:
             a.append(f" +${f['usd']:.0f}",
                      style="green" if f["side"] == "up" else "red")
+    else:
+        a.append("   FLOW -- waiting for fills", style="dim")
     a.append("\n")
     for sev, txt in wl[:3]:
         a.append("  \u2022 ", style=sev)

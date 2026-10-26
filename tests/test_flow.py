@@ -60,6 +60,23 @@ def test_poll_starts_a_fresh_tape_for_the_next_window(S, monkeypatch):
     assert S.flow == []
 
 
+def test_poll_fetches_the_event_id_on_a_fresh_start(S, monkeypatch):
+    flowmod._seen.clear()
+    S.ws_start = 1793035800
+    S.cond = ""
+    S.flow = []
+    monkeypatch.setattr(polymod, "market",
+                        lambda slug: {"condition_id": "0xcond"})
+    monkeypatch.setattr(polymod, "recent_trades", lambda cond: [
+        {"ts": 100.0, "side": "up", "usd": 5.0, "px": 0.5},
+    ])
+
+    asyncio.run(flowmod._poll())
+
+    assert S.cond == "0xcond"
+    assert [f["usd"] for f in S.flow] == [5.0]
+
+
 def test_alerts_show_the_flow_tape(S):
     S.flow = [
         {"ts": 102.0, "side": "dn", "usd": 297.0, "px": 0.99},
