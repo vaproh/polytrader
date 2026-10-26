@@ -168,6 +168,21 @@ def test_live_sell_carries_a_one_tick_price_floor(broker):
     assert call["order_type"] == "FAK"
 
 
+def test_sell_floors_shares_to_whole_cents(broker):
+    # rounding 5.457143 up to 5.46 exceeds the wallet balance and the CLOB
+    # rejects the whole order with "not enough balance"
+    ok, _ = broker.sell(TOKEN, 5.457143, 0.05)
+    assert ok is True
+    assert broker.fake.calls[0]["shares"] == 5.45
+
+
+def test_sell_refuses_dust_below_one_cent(broker):
+    ok, detail = broker.sell(TOKEN, 0.009, 0.05)
+    assert ok is False
+    assert "0.01" in detail
+    assert broker.fake.calls == []
+
+
 def test_live_sell_floor_is_capped_at_001(broker):
     broker.sell(TOKEN, 5.0, 0.005)
     assert broker.fake.calls[0]["min_price"] == 0.01

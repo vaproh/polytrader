@@ -472,6 +472,12 @@ class TraderApp(App):
     async def _live_sell(self, bid):
         side, qty = S.pos.side, S.pos.qty
         tok = S.tokens.get(side) if side else None
+        if side and qty < 0.01:
+            # below the minimum share unit: nothing the exchange can take.
+            # book the dust at the mark instead of failing an order forever.
+            settle_position("dust", bid)
+            self.refresh_view()
+            return
         try:
             ok, detail = await asyncio.to_thread(S.broker.sell, tok, qty, bid)
         except Exception as e:
