@@ -205,3 +205,9 @@ at `_make_client`, so they never place an order or read a key.
 | `clob.polymarket.com/book?token_id=` | REST fallback when the socket is quiet |
 
 Closed markets need `&closed=true` on the gamma `markets?slug=` query.
+
+---
+
+## 9. License
+
+MIT, see `LICENSE`.
