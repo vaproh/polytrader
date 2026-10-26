@@ -250,6 +250,29 @@ def test_new_minute_opens_a_fresh_candle(S):
     assert S.twap_open == 79940.0  # ticks never touch the TWAP open
 
 
+def test_window_stacks_the_windows_own_candles(S):
+    W = 1793035800
+    S.ws_start = W
+    S.klines = [79960.0, 79970.0, 79980.0, 80000.0, 79997.0, 80010.0]
+    S.bar_ts = (W + 160) // 60  # third window minute forming
+
+    text = panels.make_window_text().plain
+
+    assert "(1) ▲+20.00" in text
+    assert "(2) ▼-3.00" in text
+    assert "(3) ▲+13.00" in text
+    assert "(4)" not in text
+
+
+def test_candle_stack_stops_where_history_runs_out(S):
+    S.ws_start = 1793035800
+    S.klines = [80000.0]
+    S.bar_ts = 1793035800 // 60
+
+    assert panels.window_candles() == []
+    assert "CANDLES" not in panels.make_window_text().plain
+
+
 def test_twap_open_latches_the_first_exact_print_of_the_minute(S):
     from polytrader.state import latch_twap_open
 

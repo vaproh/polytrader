@@ -73,6 +73,29 @@ def _tick_arrow(cur, open_):
     return ("dim", "▬ ±0.00")
 
 
+def window_candles():
+    """Per-minute spot moves for the window's own candles, oldest first.
+
+    The window is five minute-marks, so this is the (1) (2) (3) stack: each
+    finished candle freezes while the forming one keeps updating every tick.
+    Stops where history runs out, so a fresh start shows fewer.
+    """
+    if not S.klines or not S.ws_start or not S.bar_ts:
+        return []
+    now_min = S.bar_ts * 60  # bar_ts counts minutes; ws_start is epoch
+    n = len(S.klines)
+    out = []
+    for k in range(5):
+        start = S.ws_start + 60 * k
+        if start > now_min:
+            break  # future candle
+        idx = n - 1 - (now_min - start) // 60
+        if idx <= 0 or idx >= n:
+            break  # open unknown (startup)
+        out.append(S.klines[idx] - S.klines[idx - 1])
+    return out
+
+
 def _sign_style(v):
     return "green" if v >= 0 else "red"
 
@@ -203,6 +226,15 @@ def make_window_text():
     else:
         t.append("--", style="dim")
     t.append("\n")
+
+    stack = window_candles()
+    if stack:
+        t.append("CANDLES 5m     ", style="dim")
+        for i, d in enumerate(stack, 1):
+            arrow = "▲" if d > 0 else ("▼" if d < 0 else "▬")
+            style = "green" if d > 0 else ("red" if d < 0 else "dim")
+            t.append(f"({i}) {arrow}{d:+.2f}  ", style=style)
+        t.append("\n")
 
     sp = btc_spark()
     if sp:

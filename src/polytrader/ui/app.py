@@ -237,8 +237,8 @@ class TraderApp(App):
     CSS = """
     Screen { background: #000000; }
     #status { height: 4; }
-    #window { height: 8; }
-    #books { height: 6; }
+    #window { height: 9; }
+    #books { height: 8; }
     #alerts { height: 7; }
     #duo { height: 10; }
     #signal { width: 2fr; height: 100%; }
