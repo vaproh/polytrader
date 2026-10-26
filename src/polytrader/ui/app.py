@@ -248,6 +248,7 @@ class TraderApp(App):
     """
     BINDINGS = [
         ("k", "toggle_stop", "stop"),
+        ("T", "toggle_exits", "exits"),
         ("]", "preset_next", "preset+"),
         ("[", "preset_prev", "preset-"),
         ("u", "buy('up')", "buy UP"),
@@ -335,6 +336,13 @@ class TraderApp(App):
             self.refresh_view()
 
         self.push_screen(RiskScreen(S.preset, pr["stop"], pr["tp"]), apply)
+
+    def action_toggle_exits(self):
+        on = not (S.stop_on and S.tp_on)
+        S.stop_on = on
+        S.tp_on = on
+        S.msg = f"exits {'ARMED' if on else 'OFF'} (tp+stop)"
+        self.refresh_view()
 
     def action_toggle_bell(self):
         S.bell = not S.bell
@@ -619,8 +627,8 @@ class TraderApp(App):
         if mk is None:
             return
         reason, S.pos.locked = exit_decision(
-            S.pos.entry, mk, S.preset, stop_on=S.stop_on, locked=S.pos.locked,
-            qty=S.pos.qty)
+            S.pos.entry, mk, S.preset, stop_on=S.stop_on, tp_on=S.tp_on,
+            locked=S.pos.locked, qty=S.pos.qty)
         if reason:
             self._close_at(reason, mk)
 

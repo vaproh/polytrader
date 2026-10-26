@@ -41,7 +41,8 @@ wallet first. Otherwise orders fail on allowance, not balance.
 | `x` | flatten + cancel | | `o` | stake +$1 |
 | `p` | pause detector | | `[` `]` | preset prev/next |
 | `r` | reload window | | `k` | stop arm/disarm |
-| `q` | quit | | `e` | stop/tp for this preset |
+| `q` | quit | | `T` | exits (tp+stop) on/off |
+| | | | `e` | stop/tp for this preset |
 | | | | `h` | session/all-time log (`J`/`K` scroll) |
 | | | | `b` | bell on/off |
 | | | | `L` | paper/live |
@@ -161,7 +162,7 @@ Seven panels, top to bottom:
 | **status** | BTC spot, price to beat and source, current TWAP with UP/DOWN and dollar/percent distance, session %, mode, cash/order/after/cap, stake, pause, last action |
 | **window** | window slug, countdown and progress bar, price to beat and source, 60s TWAP now with UP/DOWN and distance, Binance spot as context, resolution rule |
 | **books** | both outcome tokens, best bid/ask with size, depth within 3c, shares the stake buys, pair bid/ask and overround, fresh/stale quote age |
-| **signal** | detected regime, fair P(up) vs market ask, token bid base rates, z-score, tick vol, travel, 30s/60s move, RSI(1m) 6/12/14/24, gate checks |
+| **signal** | detected regime, fair P(up) vs market ask, token bid base rates, z-score, tick vol, travel, 30s/60s move, RSI(1m) 6/12/14/24 plus a per-second RSI(5s), gate checks |
 | **alerts** | mechanical warnings: RSI extremes, volume surge, aggressor split, CVD, divergence, vol expansion, streaks, EMA200, MACD, Bollinger squeeze |
 | **pos** | side, size, cost, value, pays-on-win, entry, mark, P&L, stop and TP prices, session P&L, win rate, preset |
 | **log** | closed trades with AM/PM stamp, entry/exit, percent, P&L, L/P mode, and the close reason; `h` switches session/all-time with counts and both P&Ls, grouped per day |

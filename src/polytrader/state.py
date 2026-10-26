@@ -82,6 +82,7 @@ class State:
         self.last_event = 0.0
         self.ws_connected = False
         self.stop_on = True
+        self.tp_on = True  # T toggles both exits; k toggles the stop alone
         self.cvd = 0.0
         self.cvd_hist = deque(maxlen=4000)
         self.trade_hist = deque(maxlen=20000)

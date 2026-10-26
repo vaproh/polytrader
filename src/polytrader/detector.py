@@ -237,6 +237,27 @@ def warnings():
     return out
 
 
+def rsi_fast(period=14, bucket=5.0):
+    """Second-scale RSI over 5s closes from the tick tape.
+
+    RSI(1m) barely moves inside a bar; a 5-minute window needs momentum that
+    updates every paint. None until ~80s of ticks exist.
+    """
+    if not S.btc_hist:
+        return None
+    now = S.btc_hist[-1][0]
+    n = period + 1
+    lo = now - n * bucket
+    buckets = {}
+    for t, p in S.btc_hist:
+        if t >= lo:
+            buckets[int(t // bucket)] = p
+    keys = sorted(buckets)
+    if len(keys) < n:
+        return None
+    return rsi_last([buckets[k] for k in keys[-n:]], period)
+
+
 def rsi_series_py(c, n=14):
     if len(c) < n + 2:
         return None

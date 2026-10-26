@@ -108,7 +108,8 @@ def roll_to_window(ws, toks, px=None):
     S.msg = f"window {ws}"
 
 
-def exit_decision(entry, mark, preset, stop_on=True, locked=False, qty=None):
+def exit_decision(entry, mark, preset, stop_on=True, tp_on=True, locked=False,
+                  qty=None):
     """Pure exit rule: (reason or None, locked).
 
     Order matters: breakeven arms first, then TP, then the stop. If TP and the
@@ -119,7 +120,7 @@ def exit_decision(entry, mark, preset, stop_on=True, locked=False, qty=None):
     if pr["be"] > 0 and not locked and mark >= entry * (1 + pr["be"]):
         locked = True
     tp, stop = pr["tp"], pr["stop"]
-    if _tp_hit(entry, mark, qty, tp):
+    if tp_on and _tp_hit(entry, mark, qty, tp):
         return f"TAKE PROFIT {fmt_leg(tp)}", locked
     if not stop_on:
         return None, locked

@@ -367,6 +367,36 @@ def test_bell_toggle_flips_the_flag(S):
     assert S.bell is True
 
 
+def test_exits_toggle_disables_tp_and_stop_together(S):
+    from polytrader.ui.app import TraderApp
+
+    app = object.__new__(TraderApp)
+
+    TraderApp.action_toggle_exits(app)
+    assert S.stop_on is False
+    assert S.tp_on is False
+
+    TraderApp.action_toggle_exits(app)
+    assert S.stop_on is True
+    assert S.tp_on is True
+
+
+def test_position_panel_shows_exits_off(S):
+    from polytrader.state import Book
+
+    S.pos.side = "up"
+    S.pos.qty = 10.0
+    S.pos.entry = 0.40
+    S.tokens = {"up": "TOK"}
+    S.books = {"TOK": Book(bids={0.45: 100.0})}
+    S.stop_on = False
+    S.tp_on = False
+
+    text = panels.make_position_text().plain
+
+    assert "tp OFF" in text
+
+
 def test_risk_modal_applies_per_preset_numbers_for_the_session_only(S, tmp_path, monkeypatch):
     import json
 
