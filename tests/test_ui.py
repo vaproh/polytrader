@@ -138,9 +138,13 @@ def test_trades_show_the_close_reason(S):
 
 
 def test_window_shows_candle_moves_with_dollar_amounts(S):
+    import time
+
     S.strike = 80000.0
     S.twap = 80130.58
+    S.twap_src = "chainlink"
     S.twap_open = 80125.00
+    S.twap_open_bar = int(time.time()) // 60
     S.btc = 80327.93
     S.candle_open = 80330.00
 
@@ -154,12 +158,30 @@ def test_window_hides_arrows_before_the_first_tick(S):
     S.strike = 80000.0
     S.twap = 80130.58
     S.twap_open = 0.0
+    S.twap_open_bar = 0
     S.btc = 80327.93
     S.candle_open = 0.0
 
     text = panels.make_window_text().plain
 
     assert "▲" not in text and "▼" not in text
+
+
+def test_window_hides_the_twap_arrow_on_the_proxy_feed(S):
+    import time
+
+    S.strike = 80000.0
+    S.twap = 80130.58
+    S.twap_src = "proxy"
+    S.twap_open = 80125.00
+    S.twap_open_bar = int(time.time()) // 60
+    S.btc = 80327.93
+    S.candle_open = 80330.00
+
+    text = panels.make_window_text().plain
+
+    assert "▲" not in text
+    assert "▼ -2.07" in text  # the spot arrow still works
 
 
 def test_next_key_needs_the_last_minute(S, monkeypatch):
@@ -219,11 +241,35 @@ def test_new_minute_opens_a_fresh_candle(S):
     S.bar_ts = 100
     S.btc = 80000.0
     S.twap = 79950.0
+    S.twap_open = 79940.0
+    S.twap_open_bar = 99
 
     on_price_tick(80100.0, now=101 * 60)
 
     assert S.candle_open == 80100.0
-    assert S.twap_open == 79950.0
+    assert S.twap_open == 79940.0  # ticks never touch the TWAP open
+
+
+def test_twap_open_latches_the_first_exact_print_of_the_minute(S):
+    from polytrader.state import latch_twap_open
+
+    minute = 1793035800 // 60 * 60
+    S.twap = 80130.0
+    S.twap_src = "chainlink"
+
+    latch_twap_open(now=minute + 5)
+
+    assert S.twap_open == 80130.0
+    assert S.twap_open_bar == minute // 60
+
+    S.twap = 80120.0  # later prints do not move the open
+    latch_twap_open(now=minute + 50)
+    assert S.twap_open == 80130.0
+
+    S.twap_src = "proxy"  # the proxy never latches
+    S.twap = 80100.0
+    latch_twap_open(now=minute + 300)
+    assert S.twap_open == 80130.0
 
 
 def test_refresh_next_stores_tokens_and_books(S, monkeypatch):

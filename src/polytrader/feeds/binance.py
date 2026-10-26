@@ -41,7 +41,6 @@ def on_price_tick(p, now):
                 S.klines = S.klines[-200:]
         S.bar_ts = b
         S.candle_open = p    # first tick of the new candle
-        S.twap_open = S.twap  # TWAP at the candle open
     S.btc = p
     if not S.session_open:
         S.session_open = p

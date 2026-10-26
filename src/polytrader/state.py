@@ -110,7 +110,8 @@ class State:
         self.book_dirty = False
         self.last_book_paint = 0.0
         self.candle_open = 0.0  # first spot price of the current 1m candle
-        self.twap_open = 0.0  # TWAP sampled at the candle open
+        self.twap_open = 0.0  # first exact TWAP of the candle, for the arrow
+        self.twap_open_bar = 0  # minute bucket twap_open belongs to
         self.next_tokens: dict[str, str] = {}  # next window's "up"/"dn" -> asset_id
         self.next_books: dict[str, Book] = {}  # next window's asset_id -> Book
         self.next_slug = ""
@@ -149,3 +150,18 @@ def mark_price(side):
     if not bk:
         return None
     return bk.best_bid()
+
+
+def latch_twap_open(now=None):
+    """Pin the TWAP candle open to the first exact print of each minute.
+
+    Latching the proxy would bake the proxy/exact gap into the whole
+    minute's arrow, which is exactly the fake -8.65 that shows up after
+    every feed switch. A minute with no exact print gets no TWAP arrow.
+    """
+    if S.twap_src != "chainlink" or not S.twap:
+        return
+    bar = int((time.time() if now is None else now) // 60)
+    if bar != S.twap_open_bar:
+        S.twap_open_bar = bar
+        S.twap_open = S.twap
