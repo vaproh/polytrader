@@ -90,22 +90,75 @@ def test_books_show_both_pair_sums(S):
     assert "UP" in text and "DOWN" in text
 
 
-def test_signal_does_not_print_a_fake_rsi_while_warming_up(S):
+def test_signal_warms_each_rsi_period_in_turn(S):
     S.regime = "CHOP"
     S.klines = [1.0] * 10
 
     text = panels.make_signal_text().plain
 
-    assert "RSI(14) 1m -- (10/15 bars)" in text
+    assert "6:" in text
+    assert "12:" not in text
+    assert "14:" not in text
+    assert "24:" not in text
 
 
-def test_signal_prints_rsi_with_one_decimal(S):
+def test_signal_shows_nothing_fake_before_the_fastest_rsi(S):
+    S.regime = "CHOP"
+    S.klines = [1.0] * 5
+
+    text = panels.make_signal_text().plain
+
+    assert "-- (5/7 bars)" in text
+
+
+def test_signal_prints_every_rsi_with_one_decimal(S):
     S.regime = "CHOP"
     S.klines = [float(i) for i in range(30)]
 
     text = panels.make_signal_text().plain
 
-    assert "RSI(14) 1m 100.0" in text
+    assert "6:100.0" in text
+    assert "12:100.0" in text
+    assert "14:100.0" in text
+    assert "24:100.0" in text
+
+
+def test_chart_marks_the_beat_and_scales_to_the_bars(S):
+    S.klines = [float(80000 + i) for i in range(30)]
+    S.strike = 80014.0
+    S.width = 80
+
+    text = panels.make_chart_text().plain
+
+    assert "BTC 1m" in text
+    assert "high" in text and "low" in text
+    assert "─" in text
+
+
+def test_chart_warms_up_instead_of_drawing_noise(S):
+    S.klines = [1.0] * 4
+
+    text = panels.make_chart_text().plain
+
+    assert "warming up -- 4 bars" in text
+
+
+def test_log_holds_the_position_and_the_trades(S):
+    S.pos.side = "up"
+    S.pos.qty = 10.0
+    S.pos.entry = 0.29
+    S.pos.ts = time.time()
+    S.tokens = {"up": "U"}
+    S.books = {"U": Book(bids={0.30: 1})}
+    S.trades = [{
+        "ts": "20:02:17", "side": "up", "entry": 0.36, "exit": 0.07,
+        "qty": 13.9, "pnl": -4.03, "pct": -0.806, "reason": "sold",
+    }]
+
+    text = panels.make_log_text().plain
+
+    assert "POSITION" in text
+    assert "sold" in text
 
 
 def test_trades_show_the_close_reason(S):

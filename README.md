@@ -144,10 +144,10 @@ Seven panels, top to bottom:
 | **status** | BTC spot, price to beat and source, current TWAP with UP/DOWN and dollar/percent distance, session %, mode, cash/order/after/cap, stake, pause, last action |
 | **window** | window slug, countdown, price to beat and source, 60s TWAP now with UP/DOWN and distance, Binance spot as context, resolution rule |
 | **books** | both outcome tokens, best bid/ask with size, depth within 3c, shares the stake buys, pair bid/ask and overround |
-| **signal** | detected regime, fair P(up) vs market ask, token bid base rates, z-score, tick vol, travel, 30s/60s move, RSI(14), gate checks |
-| **pos** | side, size, cost, value, entry, mark, P&L, stop and TP prices, session P&L, win rate, preset |
+| **chart** | BTC 1-minute closes, green above the beat and red below, beat drawn as a line |
+| **signal** | detected regime, fair P(up) vs market ask, token bid base rates, z-score, tick vol, travel, 30s/60s move, RSI(1m) 6/12/14/24, gate checks |
 | **alerts** | mechanical warnings: RSI extremes, volume surge, aggressor split, CVD, divergence, vol expansion, streaks, EMA200, MACD, Bollinger squeeze |
-| **trades** | closed trades with entry/exit, percent, P&L, and the close reason |
+| **log** | position (side, size, cost, value, entry, mark, P&L, stop/TP, session stats) then closed trades with the close reason |
 
 The resolution reference is the **60s TWAP at the close**, not spot. The window
 panel shows both: `TWAP NOW` decides UP/DOWN against the beat, and `SPOT
