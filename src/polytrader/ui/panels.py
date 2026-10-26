@@ -424,21 +424,41 @@ def make_alerts_text():
     return a
 
 
+def _trade_row(t, tr):
+    c = "green" if tr["pnl"] >= 0 else "red"
+    t.append(f"{tr['ts']}  ", style="dim")
+    t.append(f"{tr['side'].upper():<4} ", style="bold")
+    t.append(f"{tr.get('mode', ''):<1}  ", style="dim")
+    t.append(f"{_c(tr['entry'])} -> {_c(tr['exit'])}  ", style="dim")
+    t.append(f"{tr['pct'] * 100:+6.1f}%  ", style=c)
+    t.append(f"${tr['pnl']:+6.2f}", style=c)
+    reason = tr.get("reason", "")
+    if reason:
+        t.append(f"  {reason}", style="dim")
+    t.append("\n")
+
+
 def make_trades_text():
     t = Text()
+    if S.history_mode:
+        rows = list(S.trades) + list(reversed(S.history))
+        pnl = S.pnl_session + sum(h.get("pnl", 0.0) for h in S.history)
+        t.append(f"ALL-TIME {len(rows)} trades  P&L ${pnl:+.2f}",
+                 style="bold green" if pnl >= 0 else "bold red")
+        t.append("   h session · J/K scroll\n", style="dim")
+        for tr in rows[:100]:
+            _trade_row(t, tr)
+        if len(rows) > 100:
+            t.append(f"   ... {len(rows) - 100} older (file keeps 2000)",
+                     style="dim")
+        return t
     if not S.trades:
         t.append("no trades yet -- u buy UP, d buy DOWN", style="dim")
+        t.append("\n   h all-time history", style="dim")
         return t
+    t.append(f"SESSION {len(S.trades)} trades  P&L ${S.pnl_session:+.2f}",
+             style="bold green" if S.pnl_session >= 0 else "bold red")
+    t.append("   h all-time · J/K scroll\n", style="dim")
     for tr in S.trades[:12]:
-        c = "green" if tr["pnl"] >= 0 else "red"
-        t.append(f"{tr['ts']}  ", style="dim")
-        t.append(f"{tr['side'].upper():<4} ", style="bold")
-        t.append(f"{tr.get('mode', ''):<1}  ", style="dim")
-        t.append(f"{_c(tr['entry'])} -> {_c(tr['exit'])}  ", style="dim")
-        t.append(f"{tr['pct'] * 100:+6.1f}%  ", style=c)
-        t.append(f"${tr['pnl']:+6.2f}", style=c)
-        reason = tr.get("reason", "")
-        if reason:
-            t.append(f"  {reason}", style="dim")
-        t.append("\n")
+        _trade_row(t, tr)
     return t

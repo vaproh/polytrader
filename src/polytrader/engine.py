@@ -1,11 +1,51 @@
 """Money rules: exits, settlement, and the 5-minute rollover."""
 from __future__ import annotations
 
+import json
 import time
 
+from . import config
 from .config import effective_preset, fmt_leg
 from .detector import twap60
 from .state import S, mark_price
+
+
+def record_trade(tr, path=None):
+    """Append one closed trade to the local history file. Never raises."""
+    try:
+        with open(path or config.HISTORY_PATH, "a") as fh:
+            fh.write(json.dumps(tr) + "\n")
+    except Exception:
+        pass
+
+
+def load_history(limit=2000, path=None):
+    """Past runs' trades, oldest first. Corrupt lines are skipped; the file
+    is trimmed to `limit` rows so it cannot grow without bound."""
+    p = path or config.HISTORY_PATH
+    rows = []
+    try:
+        with open(p) as fh:
+            for line in fh:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    rows.append(json.loads(line))
+                except Exception:
+                    continue
+    except Exception:
+        return []
+    rows = [r for r in rows if isinstance(r, dict)]
+    if len(rows) > limit:
+        rows = rows[-limit:]
+        try:
+            with open(p, "w") as fh:
+                for r in rows:
+                    fh.write(json.dumps(r) + "\n")
+        except Exception:
+            pass
+    return rows
 
 
 def settle_position(reason="", px=None, qty=None):
@@ -19,12 +59,14 @@ def settle_position(reason="", px=None, qty=None):
         return
     pnl = (px - S.pos.entry) * q
     S.pnl_session += pnl
-    S.trades.insert(0, {"side": S.pos.side, "entry": S.pos.entry, "exit": px,
-                        "qty": q, "pnl": pnl,
-                        "pct": (px / S.pos.entry - 1) if S.pos.entry else 0.0,
-                        "ts": time.strftime("%H:%M:%S"), "reason": reason,
-                        "mode": "L" if S.live else "P"})
+    tr = {"side": S.pos.side, "entry": S.pos.entry, "exit": px,
+          "qty": q, "pnl": pnl,
+          "pct": (px / S.pos.entry - 1) if S.pos.entry else 0.0,
+          "ts": time.strftime("%I:%M:%S %p").lstrip("0"), "reason": reason,
+          "mode": "L" if S.live else "P"}
+    S.trades.insert(0, tr)
     del S.trades[200:]
+    record_trade(tr)
     S.pos.qty -= q
     # Orders round shares to 2dp, so a remainder below half a hundredth can
     # never be sent: the SDK refuses it as "shares must be a positive number".

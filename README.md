@@ -42,6 +42,7 @@ wallet first. Otherwise orders fail on allowance, not balance.
 | `p` | pause detector | | `[` `]` | preset prev/next |
 | `r` | reload window | | `k` | stop arm/disarm |
 | `q` | quit | | `e` | stop/tp for this preset |
+| | | | `h` | session/all-time log (`J`/`K` scroll) |
 | | | | `b` | bell on/off |
 | | | | `L` | paper/live |
 
@@ -70,7 +71,9 @@ position panel shows the effective stop/TP, including your overrides.
 
 Every booked close flashes `FILLED` in the status line and rings the terminal
 bell (`b` toggles it), in paper and live mode. Each trade row ends with `L`
-or `P` for the mode it closed in.
+or `P` for the mode it closed in. Every close is also appended to
+`~/.polytrader-history.jsonl` (terminal's own fills only, newest runs included),
+so `h` can show the all-time log with its trade count and P&L after a restart.
 
 Exit order at 30 Hz: arm breakeven → take profit → stop. If TP and stop could
 both fire on one tick, TP wins. A TP target above 1.00 is labelled `unreachable`
@@ -160,7 +163,7 @@ Seven panels, top to bottom:
 | **signal** | detected regime, fair P(up) vs market ask, token bid base rates, z-score, tick vol, travel, 30s/60s move, RSI(1m) 6/12/14/24, gate checks |
 | **alerts** | mechanical warnings: RSI extremes, volume surge, aggressor split, CVD, divergence, vol expansion, streaks, EMA200, MACD, Bollinger squeeze |
 | **pos** | side, size, cost, value, pays-on-win, entry, mark, P&L, stop and TP prices, session P&L, win rate, preset |
-| **log** | closed trades with entry/exit, percent, P&L, L/P mode, and the close reason |
+| **log** | closed trades with AM/PM stamp, entry/exit, percent, P&L, L/P mode, and the close reason; `h` switches session/all-time with counts and both P&Ls |
 
 The resolution reference is the **60s TWAP at the close**, not spot. The window
 panel shows both: `TWAP NOW` decides UP/DOWN against the beat, and `SPOT

@@ -113,6 +113,7 @@ and starts in paper mode with the reason printed.
 | `o` | stake +$1 |
 | `e` | stop/tp for this preset (saved locally, per preset) |
 | `b` | bell on/off |
+| `h` | session / all-time trade log (`J`/`K` scroll the log) |
 | `p` | pause the detector |
 | `r` | reload the window |
 | `L` | toggle paper / live |
