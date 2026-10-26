@@ -187,6 +187,37 @@ def test_status_in_paper_does_not_claim_a_cash_balance(S):
     assert "CASH -- (paper)" in text
 
 
+def test_buy_refuses_when_no_amount_is_set(S):
+    from polytrader.ui.app import TraderApp
+
+    S.tokens = {"up": "U"}
+    S.books = {"U": Book(bids={0.28: 1}, asks={0.31: 1})}
+    S.stake = 0.0
+
+    app = object.__new__(TraderApp)
+    TraderApp.action_buy(app, "up")
+
+    assert S.msg == "no amount set -- press a first"
+    assert not S.pos.side
+
+
+def test_terminal_starts_disarmed(S):
+    assert S.stake == 0.0
+
+    status = panels.make_status_text().plain
+
+    assert "ORDER -- (press a)" in status
+
+    S.tokens = {"up": "U", "dn": "D"}
+    S.books = {
+        "U": Book(bids={0.49: 1}, asks={0.50: 1}),
+        "D": Book(bids={0.49: 1}, asks={0.50: 1}),
+    }
+    books = panels.make_books_text().plain
+
+    assert "ORDER  -- (press a)" in books
+
+
 def test_books_show_the_shares_the_stake_buys(S):
     S.stake = 10.0
     S.tokens = {"up": "U", "dn": "D"}
@@ -241,6 +272,21 @@ def test_amount_screen_returns_a_typed_dollar_amount(S):
     asyncio.run(go())
 
     assert app.result == 12.34
+
+
+def test_amount_screen_warns_about_the_exchange_minimum(S):
+    from textual.widgets import Label
+
+    app = _ModalHost()
+
+    async def go():
+        async with app.run_test() as pilot:
+            await pilot.pause()
+            hint = app.screen.query_one("#amount-hint", Label)
+            text = hint.render().plain
+            assert "$1" in text
+
+    asyncio.run(go())
 
 
 def test_amount_binding_sets_the_stake(S, monkeypatch):

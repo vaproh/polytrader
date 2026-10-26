@@ -82,12 +82,13 @@ class AmountScreen(ModalScreen[float | None]):
         inp.select_all()
 
     def _hint(self):
+        base = "exchange minimum ~$1 -- use $2+ to be safe"
         if not S.live:
-            return "paper mode -- no real cash"
+            return f"paper mode -- no real cash. {base}"
         cash = f"${S.balance:,.2f}" if S.balance is not None else "--"
         cap = getattr(S.broker, "max_usdc", 0.0) if S.broker else 0.0
         cap_s = f"${cap:,.2f}" if cap > 0 else "none"
-        return f"cash {cash}   per-order cap {cap_s}"
+        return f"cash {cash}   per-order cap {cap_s}. {base}"
 
     def _error(self, msg):
         self.query_one("#amount-error", Label).update(msg)
@@ -257,6 +258,9 @@ class TraderApp(App):
     def action_buy(self, side):
         if S.pos.side:
             S.msg = f"already {S.pos.side.upper()} -- s to sell first"
+            return
+        if S.stake <= 0:
+            S.msg = "no amount set -- press a first"
             return
         bk = cur_book(side)
         if not bk or not bk.best_ask():

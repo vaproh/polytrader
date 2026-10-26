@@ -67,7 +67,7 @@ class State:
         self.trades: list[dict] = []
         self.paused = False
         self.live = False
-        self.stake = 5.0
+        self.stake = 0.0  # 0 means disarmed: u/d refuse until an amount is set
         self.regime = "?"
         self.rates = {}
         self.metrics = {}
@@ -100,7 +100,7 @@ class State:
             self.preset = self.cfg["preset"]
         try:
             stake = float(self.cfg.get("stake", self.stake))
-            if stake > 0:
+            if stake >= 0:
                 self.stake = stake
         except (TypeError, ValueError):
             pass

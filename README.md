@@ -16,7 +16,8 @@ uv sync
 
 uv run polytrader              # paper, no credentials
 uv run polytrader --dry        # credential + price-bound check; nothing sent
-uv run polytrader --live --stake 12.50   # real orders, custom dollar stake
+uv run polytrader --live       # real orders, starts disarmed (press a first)
+uv run polytrader --live --stake 12.50   # ...or start with a size loaded
 ```
 
 `uv sync` builds `.venv` from `pyproject.toml` and `uv.lock`; every command
@@ -42,7 +43,9 @@ wallet first. Otherwise orders fail on allowance, not balance.
 | `r` | reload window | | `k` | stop arm/disarm |
 | `q` | quit | | `L` | paper/live |
 
-`a` opens a prompt; the amount is saved to `~/.polytrader.json`. The status
+`a` opens a prompt; the amount is saved to `~/.polytrader.json`. The terminal
+starts disarmed (`ORDER -- (press a)`), and `u`/`d` refuse until an amount is
+set, so a stray keypress can never fire. The status
 line shows `CASH`, the next `ORDER`, the cash `AFTER` that order, and the
 per-order cap. The books show how many shares the stake buys at each ask. In
 live mode the cash line refreshes every 10 seconds and after every fill.

@@ -107,11 +107,12 @@ def make_status_text():
 
     # cash line: account collateral and the order this stake would place
     t.append("\nCASH ", style="dim")
+    order = _usd(S.stake) if S.stake > 0 else "-- (press a)"
     if S.live:
         t.append(_usd(S.balance) if S.balance is not None else "--",
                  style="bold green")
-        t.append(f"   ORDER {_usd(S.stake)}", style="yellow")
-        if S.balance is not None:
+        t.append(f"   ORDER {order}", style="yellow")
+        if S.balance is not None and S.stake > 0:
             left = S.balance - S.stake
             t.append(f"   AFTER {_usd(left)}", style="red" if left < 0 else "dim")
         cap = getattr(S.broker, "max_usdc", 0.0) if S.broker else 0.0
@@ -119,7 +120,7 @@ def make_status_text():
                  style="dim")
     else:
         t.append("-- (paper)", style="dim")
-        t.append(f"   ORDER {_usd(S.stake)}", style="yellow")
+        t.append(f"   ORDER {order}", style="yellow")
         t.append("   cap --", style="dim")
     return t
 
@@ -210,11 +211,14 @@ def make_books_text():
 
     if ua is not None or da is not None:
         b.append("ORDER  ", style="bold")
-        b.append(_usd(S.stake), style="yellow")
-        if ua is not None:
-            b.append(f" -> UP {S.stake / ua:.1f}sh", style="dim")
-        if da is not None:
-            b.append(f" / DOWN {S.stake / da:.1f}sh", style="dim")
+        if S.stake > 0:
+            b.append(_usd(S.stake), style="yellow")
+            if ua is not None:
+                b.append(f" -> UP {S.stake / ua:.1f}sh", style="dim")
+            if da is not None:
+                b.append(f" / DOWN {S.stake / da:.1f}sh", style="dim")
+        else:
+            b.append("-- (press a)", style="dim")
 
     return b
 

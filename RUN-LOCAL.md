@@ -119,6 +119,10 @@ and starts in paper mode with the reason printed.
 The custom amount is saved to `~/.polytrader.json` and survives a restart.
 The books show how many shares the current stake buys at each ask.
 
+The exchange rejects marketable orders under ~$1. After it truncates sub-cent
+digits and floors the share count, a $1.00 stake can evaluate to $0.98 and get
+refused. Start at $2 or more; the amount prompt says the same.
+
 ## Safety properties built in
 
 - paper by default; live needs `--live` **and** a working key
