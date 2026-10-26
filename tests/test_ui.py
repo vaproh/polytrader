@@ -90,7 +90,7 @@ def test_signal_does_not_print_a_fake_rsi_while_warming_up(S):
 
     text = panels.make_signal_text().plain
 
-    assert "RSI -- (10/15 bars)" in text
+    assert "RSI(14) 1m -- (10/15 bars)" in text
 
 
 def test_signal_prints_rsi_with_one_decimal(S):
@@ -99,7 +99,7 @@ def test_signal_prints_rsi_with_one_decimal(S):
 
     text = panels.make_signal_text().plain
 
-    assert "RSI 100.0" in text
+    assert "RSI(14) 1m 100.0" in text
 
 
 def test_trades_show_the_close_reason(S):
@@ -111,3 +111,39 @@ def test_trades_show_the_close_reason(S):
     text = panels.make_trades_text().plain
 
     assert "sold" in text
+
+
+def test_signal_labels_base_rates_as_the_token_bid(S):
+    S.regime = "CHOP-DOWN"
+    S.rates = {"r20": 0.308, "r50": 0.192, "n": 130178,
+               "med": -0.154, "mean": 0.124}
+
+    text = panels.make_signal_text().plain
+
+    assert "token bid 60s" in text
+    assert "+20% 30.8%" in text
+
+
+def test_free_preset_does_not_claim_the_stop_is_armed(S):
+    S.pos.side = "up"
+    S.pos.qty = 17.2
+    S.pos.entry = 0.29
+    S.pos.ts = time.time()
+    S.preset = "FREE"
+    S.stop_on = True
+    S.tokens = {"up": "U"}
+    S.books = {"U": Book(bids={0.30: 1})}
+
+    text = panels.make_position_text().plain
+
+    assert "stop none" in text
+    assert "stop ARMED" not in text
+
+
+def test_alerts_label_cumulative_cvd_as_session(S):
+    S.cvd = 146.6
+    S.trade_hist.append((time.time(), 1.0, True))
+
+    text = panels.make_alerts_text().plain
+
+    assert "CVD session +146.6" in text

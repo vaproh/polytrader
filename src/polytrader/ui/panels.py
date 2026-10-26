@@ -217,13 +217,13 @@ def make_signal_text():
         if fp is not None:
             gap = fp - mk
             t.append("   gap ", style="dim")
-            t.append(f"{gap * 100:+.0f}c", style="green" if gap > 0 else "red")
+            t.append(f"{gap * 100:+.0f}c", style="dim")
     t.append("\n")
 
     r = S.rates or {}
     if r:
-        t.append(f"  P(+20% 60s) {r['r20'] * 100:4.1f}%", style="white")
-        t.append(f"   P(+50%) {r['r50'] * 100:4.1f}%", style="white")
+        t.append(f"  token bid 60s  +20% {r['r20'] * 100:4.1f}%", style="white")
+        t.append(f"   +50% {r['r50'] * 100:4.1f}%", style="white")
         t.append(f"   n={r['n']:,}\n", style="dim")
         t.append(f"  median {r['med'] * 100:+.1f}%", style="red" if r["med"] < 0 else "green")
         t.append(f"   mean {r['mean'] * 100:+.1f}%\n", style="dim")
@@ -241,7 +241,7 @@ def make_signal_text():
     t.append("   60s ", style="dim")
     t.append(f"{st['m60']:+.2f}" if st else "--",
              style=_sign_style(st["m60"]) if st else "dim")
-    t.append("   RSI ", style="dim")
+    t.append("   RSI(14) 1m ", style="dim")
     if len(S.klines) >= 15:
         r14 = rsi_last(S.klines)
         t.append(f"{r14:.1f}", style="red" if r14 >= 70 else ("green" if r14 <= 30 else "white"))
@@ -316,8 +316,14 @@ def make_position_text():
         p.append("\n", style="dim")
 
     pr = PRESETS.get(S.preset, PRESETS["SCALP"])
-    p.append(f"  preset {S.preset}   stop {'ARMED' if S.stop_on else 'OFF'}", style="dim")
-    if pr["stop"] > 0:
+    if not S.stop_on:
+        stop_state = "OFF"
+    elif pr["stop"] <= 0:
+        stop_state = "none"
+    else:
+        stop_state = "ARMED"
+    p.append(f"  preset {S.preset}   stop {stop_state}", style="dim")
+    if S.stop_on and pr["stop"] > 0:
         p.append(f" (-{pr['stop'] * 100:.0f}%)", style="dim")
     p.append(f"   tp +{pr['tp'] * 100:.0f}%   be +{pr['be'] * 100:.0f}%\n", style="dim")
     return p
@@ -335,7 +341,7 @@ def make_alerts_text():
         a.append(f"buy {bv:.1f}", style="green")
         a.append(" / ", style="dim")
         a.append(f"sell {sv:.1f}", style="red")
-        a.append(f"   CVD {S.cvd:+.1f}", style="dim")
+        a.append(f"   CVD session {S.cvd:+.1f}", style="dim")
     a.append("\n")
     for sev, txt in wl[:3]:
         a.append("  \u2022 ", style=sev)
