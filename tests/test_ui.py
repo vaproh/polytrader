@@ -137,6 +137,31 @@ def test_trades_show_the_close_reason(S):
     assert "sold" in text
 
 
+def test_window_shows_tick_arrows_with_dollar_moves(S):
+    S.strike = 80000.0
+    S.twap = 80130.58
+    S.prev_twap = 80125.00
+    S.btc = 80327.93
+    S.prev_btc = 80330.00
+
+    text = panels.make_window_text().plain
+
+    assert "▲ +5.58" in text
+    assert "▼ -2.07" in text
+
+
+def test_window_hides_arrows_on_first_paint(S):
+    S.strike = 80000.0
+    S.twap = 80130.58
+    S.prev_twap = 0.0
+    S.btc = 80327.93
+    S.prev_btc = 0.0
+
+    text = panels.make_window_text().plain
+
+    assert "▲" not in text and "▼" not in text
+
+
 def test_signal_labels_base_rates_as_the_token_bid(S):
     S.regime = "CHOP-DOWN"
     S.rates = {"r20": 0.308, "r50": 0.192, "n": 130178,

@@ -695,3 +695,4 @@ class TraderApp(App):
         self._set("#pos", make_position_text())
         self._set("#alerts", make_alerts_text())
         self._set_log(make_trades_text())
+        S.prev_twap, S.prev_btc = S.twap, S.btc

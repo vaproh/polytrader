@@ -111,6 +111,8 @@ class State:
             pass
         self.book_dirty = False
         self.last_book_paint = 0.0
+        self.prev_twap = 0.0  # last painted TWAP, for the tick arrow
+        self.prev_btc = 0.0  # last painted spot, for the tick arrow
         self.broker = None
         self.busy = False
         self.exit_retry_ts = 0.0
