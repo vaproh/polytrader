@@ -152,6 +152,28 @@ def test_settle_tags_the_mode_and_rings_the_bell(S):
     assert S.trades[0]["mode"] == "P"
 
 
+def test_dollar_take_profit_and_stop_fire_on_pnl(S):
+    S.risk = {"SCALP": {"stop": {"by": "usd", "v": 0.40},
+                        "tp": {"by": "usd", "v": 0.50}}}
+
+    reason, _ = exit_decision(0.50, 0.625, "SCALP", qty=4.0)
+    assert reason == "TAKE PROFIT +$0.50"
+
+    reason, _ = exit_decision(0.50, 0.60, "SCALP", qty=4.0)
+    assert reason is None
+
+    reason, _ = exit_decision(0.50, 0.39, "SCALP", qty=4.0)
+    assert reason == "STOP -$0.40"
+
+
+def test_dollar_legs_stay_inert_without_a_size(S):
+    S.risk = {"SCALP": {"stop": {"by": "usd", "v": 0.40},
+                        "tp": {"by": "usd", "v": 0.50}}}
+
+    reason, _ = exit_decision(0.50, 0.99, "SCALP")
+    assert reason is None
+
+
 def test_dust_the_exchange_cannot_sell_is_absorbed(S):
     from polytrader.engine import settle_position
 

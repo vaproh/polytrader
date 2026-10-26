@@ -266,6 +266,24 @@ def test_position_shows_cost_and_value(S):
     assert "29.0¢" in text
 
 
+def test_position_shows_dollar_stop_and_tp_prices(S):
+    S.preset = "SCALP"
+    S.risk = {"SCALP": {"stop": {"by": "usd", "v": 0.40},
+                        "tp": {"by": "usd", "v": 0.50}}}
+    S.pos.side = "up"
+    S.pos.qty = 4.0
+    S.pos.entry = 0.50
+    S.pos.ts = time.time()
+    S.tokens = {"up": "U"}
+    S.books = {"U": Book(bids={0.55: 1})}
+
+    text = panels.make_position_text().plain
+
+    assert "40.0¢" in text
+    assert "62.5¢" in text
+    assert "-$0.40" in text and "+$0.50" in text
+
+
 def test_window_shows_a_progress_bar(S):
     S.slug = "btc-updown-5m-1793025000"
     S.ws_start = int(time.time()) - 150
@@ -314,22 +332,26 @@ def test_trades_show_the_mode_letter(S):
     assert " L " in text
 
 
-def test_parse_percent_accepts_plain_numbers_and_signs():
-    from polytrader.ui.app import parse_percent
+def test_parse_risk_value_accepts_percent_and_dollars():
+    from polytrader.ui.app import parse_risk_value
 
-    assert parse_percent("25", 99) == 0.25
-    assert parse_percent("20%", 99) == 0.20
-    assert parse_percent("0", 99) == 0.0
+    assert parse_risk_value("25") == ("pct", 0.25)
+    assert parse_risk_value("25%") == ("pct", 0.25)
+    assert parse_risk_value("$0.50") == ("usd", 0.50)
+    assert parse_risk_value("50c") == ("usd", 0.50)
+    assert parse_risk_value("50¢") == ("usd", 0.50)
+    assert parse_risk_value("$1,000") == ("usd", 1000.0)
+    assert parse_risk_value("0") == ("pct", 0.0)
 
 
-def test_parse_percent_rejects_out_of_range():
+def test_parse_risk_value_rejects_garbage():
     import pytest
 
-    from polytrader.ui.app import parse_percent
+    from polytrader.ui.app import parse_risk_value
 
-    for raw in ["", "abc", "-5", "100"]:
+    for raw in ["", "abc", "-5", "1001%", "$-1"]:
         with pytest.raises(ValueError):
-            parse_percent(raw, 99)
+            parse_risk_value(raw)
 
 
 def test_bell_toggle_flips_the_flag(S):
@@ -372,16 +394,19 @@ def test_risk_modal_saves_per_preset_numbers(S, tmp_path, monkeypatch):
             await pilot.pause()
             stop = app.screen.query_one("#risk-stop", Input)
             tp = app.screen.query_one("#risk-tp", Input)
-            stop.value = "15"
-            tp.value = "40"
+            stop.value = "$0.40"
+            tp.value = "50%"
             await pilot.press("enter")
             await pilot.pause()
 
     asyncio.run(go())
 
-    assert S.risk == {"FREE": {"stop": 0.15, "tp": 0.40}}
+    assert S.risk == {"FREE": {
+        "stop": {"by": "usd", "v": 0.40},
+        "tp": {"by": "pct", "v": 0.50}}}
     assert json.loads(path.read_text())["risk"] == {"FREE": {
-        "stop": 0.15, "tp": 0.40}}
+        "stop": {"by": "usd", "v": 0.40},
+        "tp": {"by": "pct", "v": 0.50}}}
 
 
 class _ModalHost(App):

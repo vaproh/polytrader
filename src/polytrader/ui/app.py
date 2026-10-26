@@ -10,7 +10,7 @@ from textual.containers import Horizontal, Vertical
 from textual.screen import ModalScreen
 from textual.widgets import Button, Footer, Header, Input, Label, Static
 
-from ..config import PRESETS, effective_preset, save_cfg
+from ..config import PRESETS, effective_preset, fmt_leg, save_cfg
 from ..detector import recompute_detector, twap60
 from ..engine import exit_decision, settle_position
 from ..feeds.basis import basis_loop
@@ -121,22 +121,43 @@ class AmountScreen(ModalScreen[float | None]):
         self.dismiss(None)
 
 
-def parse_percent(raw: str, cap: float) -> float:
-    """Parse a typed percent into a fraction. Raises ValueError."""
-    cleaned = raw.strip().replace("%", "")
-    if not cleaned:
+def parse_risk_value(raw: str) -> tuple[str, float]:
+    """Parse a stop/TP leg: "25" or "25%" is percent, "$0.50" or "50c" is dollars.
+
+    Zero disables the leg either way. Raises ValueError with a human message.
+    """
+    text = raw.strip().replace(",", "")
+    if not text:
         raise ValueError("enter a number, 0 disables")
+    low = text.lower()
+    for suffix in ("cents", "cent", "\u00a2", "c"):
+        if low.endswith(suffix) and "$" not in low:
+            try:
+                value = round(float(text[: -len(suffix)].strip()) / 100, 2)
+            except ValueError:
+                raise ValueError("enter cents, e.g. 50c") from None
+            if value < 0 or value > 1_000_000:
+                raise ValueError("0c to 100000000c")
+            return ("usd", value) if value > 0 else ("pct", 0.0)
+    if "$" in low:
+        try:
+            value = round(float(text.replace("$", "").strip()), 2)
+        except ValueError:
+            raise ValueError("enter dollars, e.g. $0.50") from None
+        if value < 0 or value > 1_000_000:
+            raise ValueError("$0 to $1000000")
+        return ("usd", value) if value > 0 else ("pct", 0.0)
     try:
-        value = float(cleaned)
+        value = float(low.replace("%", ""))
     except ValueError:
-        raise ValueError("enter a number, e.g. 25") from None
-    if value < 0 or value > cap:
-        raise ValueError(f"0 to {cap:g}")
-    return value / 100
+        raise ValueError("enter 25%, $0.50 or 50c") from None
+    if value < 0 or value > 1000:
+        raise ValueError("0 to 1000%")
+    return ("pct", value / 100)
 
 
-class RiskScreen(ModalScreen[tuple[float, float] | None]):
-    """Small modal for per-preset stop and take-profit percents."""
+class RiskScreen(ModalScreen[dict | None]):
+    """Small modal for per-preset stop and take-profit, percent or dollars."""
 
     BINDINGS = [("escape", "cancel", "cancel")]
 
@@ -150,7 +171,7 @@ class RiskScreen(ModalScreen[tuple[float, float] | None]):
     #risk-buttons { height: auto; align-horizontal: right; }
     """
 
-    def __init__(self, preset: str, stop: float, tp: float):
+    def __init__(self, preset: str, stop: dict, tp: dict):
         super().__init__()
         self.preset = preset
         self.stop = stop
@@ -159,13 +180,13 @@ class RiskScreen(ModalScreen[tuple[float, float] | None]):
     def compose(self):
         with Vertical(id="risk-dialog"):
             yield Label(f"Risk for {self.preset} (0 disables)", id="risk-title")
-            yield Label("stop and take profit move together per preset; "
+            yield Label("percent (25%), dollars ($0.50) or cents (50c); "
                         "other presets keep their own numbers", id="risk-hint")
-            yield Label("stop %", id="risk-stop-label")
-            yield Input(value=f"{self.stop * 100:g}", placeholder="20",
+            yield Label("stop", id="risk-stop-label")
+            yield Input(value=_leg_initial(self.stop), placeholder="20% or $0.40",
                         id="risk-stop")
-            yield Label("take profit %", id="risk-tp-label")
-            yield Input(value=f"{self.tp * 100:g}", placeholder="50",
+            yield Label("take profit", id="risk-tp-label")
+            yield Input(value=_leg_initial(self.tp), placeholder="50% or $1.00",
                         id="risk-tp")
             yield Label("", id="risk-error")
             with Horizontal(id="risk-buttons"):
@@ -182,12 +203,13 @@ class RiskScreen(ModalScreen[tuple[float, float] | None]):
 
     def _submit(self):
         try:
-            stop = parse_percent(self.query_one("#risk-stop", Input).value, 99)
-            tp = parse_percent(self.query_one("#risk-tp", Input).value, 1000)
+            stop = parse_risk_value(self.query_one("#risk-stop", Input).value)
+            tp = parse_risk_value(self.query_one("#risk-tp", Input).value)
         except ValueError as e:
             self._error(str(e))
             return
-        self.dismiss((stop, tp))
+        self.dismiss({"stop": {"by": stop[0], "v": stop[1]},
+                      "tp": {"by": tp[0], "v": tp[1]}})
 
     def on_input_submitted(self, _):
         self._submit()
@@ -200,6 +222,12 @@ class RiskScreen(ModalScreen[tuple[float, float] | None]):
 
     def action_cancel(self):
         self.dismiss(None)
+
+
+def _leg_initial(leg: dict) -> str:
+    if leg["by"] == "usd":
+        return f"${leg['v']:g}"
+    return f"{leg['v'] * 100:g}"
 
 
 class TraderApp(App):
@@ -294,12 +322,11 @@ class TraderApp(App):
         def apply(value):
             if value is None:
                 return
-            stop, tp = value
             S.risk = dict(S.risk)
-            S.risk[S.preset] = {"stop": stop, "tp": tp}
+            S.risk[S.preset] = value
             save_cfg({"preset": S.preset, "stake": S.stake, "risk": S.risk})
-            S.msg = (f"{S.preset} risk: stop {stop * 100:.0f}%  "
-                     f"tp {tp * 100:.0f}%")
+            S.msg = (f"{S.preset} risk: stop "
+                     f"{fmt_leg(value['stop'], '-')}  tp {fmt_leg(value['tp'])}")
             self.refresh_view()
 
         self.push_screen(RiskScreen(S.preset, pr["stop"], pr["tp"]), apply)
@@ -340,8 +367,8 @@ class TraderApp(App):
         S.preset = name
         save_cfg({"preset": name, "stake": S.stake, "risk": S.risk})
         pr = effective_preset(name, S.risk)
-        S.msg = (f"preset {name}: stop {pr['stop']*100:.0f}%  "
-                 f"tp {pr['tp']*100:.0f}%  be {pr['be']*100:.0f}%")
+        S.msg = (f"preset {name}: stop {fmt_leg(pr['stop'], '-')}  "
+                 f"tp {fmt_leg(pr['tp'])}  be +{pr['be'] * 100:.0f}%")
         self.refresh_view()
 
     def action_preset_next(self):
@@ -539,7 +566,8 @@ class TraderApp(App):
         if mk is None:
             return
         reason, S.pos.locked = exit_decision(
-            S.pos.entry, mk, S.preset, stop_on=S.stop_on, locked=S.pos.locked)
+            S.pos.entry, mk, S.preset, stop_on=S.stop_on, locked=S.pos.locked,
+            qty=S.pos.qty)
         if reason:
             self._close_at(reason, mk)
 

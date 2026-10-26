@@ -61,10 +61,11 @@ live mode the cash line refreshes every 10 seconds and after every fill.
 | `RUNNER` | 25% | 100% | +40% |
 | `FREE` | off | off | off |
 
-`e` opens a risk prompt for the current preset: type a stop % and a TP %
-(0 disables that leg). Each preset keeps its own numbers in the local cfg
-file, so editing SCALP never touches RUNNER, and nothing is committed to the
-repo. `FREE` can carry a real stop/TP this way while defaulting to off. The
+`e` opens a risk prompt for the current preset: type a stop and a TP as a
+percent (`25%`), dollars (`$0.50`) or cents (`50c`); 0 disables that leg.
+Each preset keeps its own numbers in the local cfg file, so editing SCALP
+never touches RUNNER, and nothing is committed to the repo.
+`FREE` can carry a real stop/TP this way while defaulting to off. The
 position panel shows the effective stop/TP, including your overrides.
 
 Every booked close flashes `FILLED` in the status line and rings the terminal
