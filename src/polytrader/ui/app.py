@@ -253,8 +253,6 @@ class TraderApp(App):
         ("[", "preset_prev", "preset-"),
         ("u", "buy('up')", "buy UP"),
         ("d", "buy('dn')", "buy DOWN"),
-        ("U", "arm('up')", "arm UP"),
-        ("D", "arm('dn')", "arm DN"),
         ("s", "sell", "sell"),
         ("1", "stake(1)"), ("2", "stake(2)"), ("3", "stake(3)"),
         ("4", "stake(4)"), ("5", "stake(5)"), ("6", "stake(6)"),
@@ -404,9 +402,6 @@ class TraderApp(App):
         if S.pos.side:
             S.msg = f"already {S.pos.side.upper()} -- s to sell first"
             return
-        if S.armed:
-            S.armed = ""  # a manual buy replaces any armed entry
-            S.armed_ws = 0
         if S.stake <= 0:
             S.msg = "no amount set -- press a first"
             return
@@ -503,43 +498,6 @@ class TraderApp(App):
             if not S.busy:
                 await self._refresh_balance()
             await asyncio.sleep(10.0)
-
-    def action_arm(self, side):
-        if S.armed == side:
-            S.armed = ""
-            S.armed_ws = 0
-            S.msg = "entry disarmed"
-            self.refresh_view()
-            return
-        base = S.ws_start or int(time.time()) // 300 * 300
-        S.armed = side
-        S.armed_ws = base + 300
-        S.msg = f"ARMED {side.upper()} for next window"
-        self.refresh_view()
-
-    def maybe_fire_armed(self):
-        """Fire an armed next-window buy once the new book exists.
-
-        Runs every tick; consumes the arming only when the buy path is
-        actually attempted, and drops it if the window passed without books.
-        """
-        if not S.armed or S.pos.side:
-            return
-        if not S.ws_start or not S.armed_ws:
-            return
-        if S.ws_start > S.armed_ws:
-            S.armed = ""  # missed the window; never buy a window late
-            S.armed_ws = 0
-            return
-        if S.ws_start != S.armed_ws or time.time() - S.ws_start < 8:
-            return
-        bk = cur_book(S.armed)
-        if not bk or not bk.best_ask():
-            return  # books not loaded yet; stay armed for the next tick
-        side = S.armed
-        S.armed = ""
-        S.armed_ws = 0
-        self.action_buy(side)
 
     def action_sell(self):
         if not S.pos.side:
@@ -664,7 +622,6 @@ class TraderApp(App):
             recompute_detector()
         self.paint_books()
         self.check_exits()
-        self.maybe_fire_armed()
 
     def refresh_view(self):
         if not self.is_mounted:

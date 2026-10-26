@@ -106,8 +106,6 @@ and starts in paper mode with the reason printed.
 |---|---|
 | `u` | buy UP at the ask |
 | `d` | buy DOWN at the ask |
-| `U` | arm UP for the next window (fires ~8s after the open) |
-| `D` | arm DOWN for the next window (fires ~8s after the open) |
 | `s` | sell the position at the bid |
 | `1`..`9` | stake $1..$9 |
 | `a` | custom dollar amount |

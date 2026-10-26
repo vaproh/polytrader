@@ -162,6 +162,60 @@ def test_window_hides_arrows_on_first_paint(S):
     assert "▲" not in text and "▼" not in text
 
 
+def test_refresh_next_stores_tokens_and_books(S, monkeypatch):
+    import asyncio
+
+    from polytrader import poly as polymod
+    from polytrader.feeds import window as win
+
+    monkeypatch.setattr(polymod, "market", lambda slug: {
+        "outcomes": ["Up", "Down"], "token_ids": ["U", "D"]})
+    monkeypatch.setattr(polymod, "book", lambda aid: {
+        "best_bid": 0.40, "bid_size": 10.0,
+        "best_ask": 0.42, "ask_size": 5.0})
+    S.ws_start = 1793035800
+
+    asyncio.run(win._refresh_next(1793036100))
+
+    assert S.next_tokens == {"up": "U", "dn": "D"}
+    assert S.next_books["U"].best_ask() == pytest.approx(0.42)
+    assert S.next_slug == "btc-updown-5m-1793036100"
+
+
+def test_books_preview_the_next_window(S):
+    import time
+
+    S.ws_start = int(time.time())
+    S.next_tokens = {"up": "NU", "dn": "ND"}
+    S.next_books = {"NU": Book(bids={0.12: 10.0}, asks={0.13: 5.0}),
+                    "ND": Book(bids={0.87: 10.0}, asks={0.88: 5.0})}
+
+    text = panels.make_books_text().plain
+
+    assert "NEXT btc-updown-5m-" in text
+    assert "starts in" in text
+    assert "12.0¢/13.0¢" in text
+    assert "87.0¢/88.0¢" in text
+
+    S.next_tokens = {}
+    S.next_books = {}
+    S.next_slug = ""
+
+    assert "not listed yet" in panels.make_books_text().plain
+
+
+def test_window_counts_down_to_the_open_after_an_early_switch(S):
+    import time
+
+    S.ws_start = int(time.time()) + 45
+    S.slug = "btc-updown-5m-1793036100"
+
+    text = panels.make_window_text().plain
+
+    assert "opens in 0:" in text
+    assert "closes in" not in text
+
+
 def test_signal_labels_base_rates_as_the_token_bid(S):
     S.regime = "CHOP-DOWN"
     S.rates = {"r20": 0.308, "r50": 0.192, "n": 130178,
@@ -404,86 +458,6 @@ def test_exits_toggle_disables_tp_and_stop_together(S):
     TraderApp.action_toggle_exits(app)
     assert S.stop_on is True
     assert S.tp_on is True
-
-
-def test_arm_queues_the_next_window(S):
-    from polytrader.ui.app import TraderApp
-
-    app = object.__new__(TraderApp)
-    S.ws_start = 1793035800
-
-    TraderApp.action_arm(app, "up")
-    assert S.armed == "up"
-    assert S.armed_ws == 1793036100
-
-    TraderApp.action_arm(app, "up")
-    assert S.armed == ""
-    assert S.armed_ws == 0
-
-
-def test_armed_entry_dies_with_its_window(S):
-    from polytrader.ui.app import TraderApp
-
-    app = object.__new__(TraderApp)
-    S.armed = "up"
-    S.armed_ws = 1793035800
-    S.ws_start = 1793036100
-
-    TraderApp.maybe_fire_armed(app)
-
-    assert S.armed == ""
-
-
-def test_manual_buy_replaces_an_armed_entry(S):
-    import time
-
-    from polytrader.ui.app import TraderApp
-
-    app = object.__new__(TraderApp)
-    S.stake = 5.0
-    S.tokens = {"up": "TOK"}
-    S.books = {"TOK": Book(asks={0.40: 100.0})}
-    S.ws_start = int(time.time())
-    S.armed = "dn"
-    S.armed_ws = S.ws_start + 300
-
-    TraderApp.action_buy(app, "up")
-
-    assert S.pos.side == "up"
-    assert S.armed == ""
-
-
-def test_armed_entry_fires_after_the_open(S, monkeypatch):
-    import time
-
-    from polytrader.ui import app as ui
-
-    async def noop(*_a, **_k):
-        return None
-
-    for name in ("binance_loop", "window_loop", "chainlink_loop",
-                 "rest_fallback_loop", "basis_loop", "clob_loop"):
-        monkeypatch.setattr(ui, name, noop)
-    monkeypatch.setattr(ui, "fetch_klines", lambda: [])
-    S.stake = 5.0
-    S.tokens = {"up": "TOK"}
-    S.books = {"TOK": Book(asks={0.40: 100.0})}
-    S.ws_start = int(time.time()) - 10
-    S.armed = "up"
-    S.armed_ws = S.ws_start
-
-    app = ui.TraderApp()
-
-    async def go():
-        async with app.run_test() as pilot:
-            await pilot.pause()
-            await pilot.pause()
-
-    asyncio.run(go())
-
-    assert S.pos.side == "up"
-    assert S.pos.entry == pytest.approx(0.40)
-    assert S.armed == ""
 
 
 def test_position_panel_shows_exits_off(S):

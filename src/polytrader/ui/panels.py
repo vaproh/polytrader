@@ -154,10 +154,16 @@ def make_window_text():
     t.append("WINDOW  ", style="bold")
     t.append(S.slug or "waiting for the window", style="white")
     if S.ws_start:
-        left = secs_left()
-        t.append(f"   closes in {clock(left)}",
-                 style="yellow" if left < 30 else "white")
-        done = min(1.0, max(0.0, (300 - left) / 300))
+        now = time.time()
+        if now < S.ws_start:
+            # rolled early: the displayed window opens in the future
+            t.append(f"   opens in {clock(S.ws_start - now)}", style="yellow")
+            done = 0.0
+        else:
+            left = secs_left()
+            t.append(f"   closes in {clock(left)}",
+                     style="yellow" if left < 30 else "white")
+            done = min(1.0, max(0.0, (300 - left) / 300))
         t.append(f"  {bar(done)} {done * 100:.0f}%", style="dim")
     t.append("\n")
 
@@ -203,9 +209,6 @@ def make_window_text():
 
     t.append("resolution: 60s TWAP at close vs beat at open. Up if final >= beat.",
              style="dim italic")
-    if S.armed:
-        t.append(f"\nARMED {S.armed.upper()} next window -- U/D to disarm",
-                 style="bold yellow")
     return t
 
 
@@ -259,6 +262,24 @@ def make_books_text():
                 b.append(f" / DOWN {S.stake / da:.1f}sh", style="dim")
         else:
             b.append("-- (press a)", style="dim")
+        b.append("\n")
+
+    if S.ws_start:
+        nxt = S.ws_start + 300
+        left_n = max(0.0, nxt - time.time())
+        b.append(f"NEXT btc-updown-5m-{nxt} starts in {clock(left_n)}\n",
+                 style="bold")
+        nbooks = []
+        for side in ("up", "dn"):
+            aid = S.next_tokens.get(side)
+            nbooks.append(S.next_books.get(aid) if aid else None)
+        if all(nbooks) and all(k.best_bid() is not None for k in nbooks):
+            nbu, nbd = nbooks
+            b.append(f"{_c(nbu.best_bid())}/{_c(nbu.best_ask())} UP   "
+                     f"{_c(nbd.best_bid())}/{_c(nbd.best_ask())} DN",
+                     style="dim")
+        else:
+            b.append("not listed yet", style="dim")
 
     return b
 

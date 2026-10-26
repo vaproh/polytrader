@@ -83,8 +83,6 @@ class State:
         self.ws_connected = False
         self.stop_on = True
         self.tp_on = True  # T toggles both exits; k toggles the stop alone
-        self.armed = ""  # U/D: side queued for the next window, "" = none
-        self.armed_ws = 0  # the window the armed buy belongs to
         self.cvd = 0.0
         self.cvd_hist = deque(maxlen=4000)
         self.trade_hist = deque(maxlen=20000)
@@ -113,6 +111,11 @@ class State:
         self.last_book_paint = 0.0
         self.prev_twap = 0.0  # last painted TWAP, for the tick arrow
         self.prev_btc = 0.0  # last painted spot, for the tick arrow
+        self.next_tokens: dict[str, str] = {}  # next window's "up"/"dn" -> asset_id
+        self.next_books: dict[str, Book] = {}  # next window's asset_id -> Book
+        self.next_slug = ""
+        self.next_ws = 0
+        self.next_ts = 0.0  # last refresh of the next window's books
         self.broker = None
         self.busy = False
         self.exit_retry_ts = 0.0
