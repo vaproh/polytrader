@@ -19,7 +19,7 @@ from ..feeds.binance import binance_loop, fetch_klines
 from ..feeds.chainlink import chainlink_loop
 from ..feeds.clob import clob_loop, rest_fallback_loop
 from ..feeds.window import window_loop
-from ..state import S, cur_book, mark_price, secs_left
+from ..state import S, cur_book, mark_price, pos_mark, secs_left
 from .panels import (make_alerts_text, make_books_text, make_position_text,
                      make_signal_text, make_status_text, make_trades_text,
                      make_window_text)
@@ -400,7 +400,7 @@ class TraderApp(App):
         S.msg = f"stop {'ARMED' if S.stop_on else 'OFF'}"
         self.refresh_view()
 
-    def action_buy(self, side):
+    def action_buy(self, side, _tokens=None, _book=None, _ws=0):
         if S.pos.side:
             S.msg = f"already {S.pos.side.upper()} -- s to sell first"
             return
@@ -410,7 +410,8 @@ class TraderApp(App):
         if S.stake <= 0:
             S.msg = "no amount set -- press a first"
             return
-        bk = cur_book(side)
+        toks = _tokens or S.tokens
+        bk = _book or cur_book(side)
         if not bk or not bk.best_ask():
             S.msg = "no ask on that side"
             return
@@ -418,7 +419,7 @@ class TraderApp(App):
         if ask <= 0.01 or ask >= 0.99:
             S.msg = f"ask {ask * 100:.1f}¢ outside tradeable band"
             return
-        if secs_left() < 20:
+        if not _ws and secs_left() < 20:
             S.msg = "too close to resolution"
             return
         qty = S.stake / ask
@@ -433,7 +434,8 @@ class TraderApp(App):
             # background and paint "SENDING" immediately.
             S.busy = True
             S.msg = f"SENDING {side.upper()} ${S.stake:,.2f} @ {ask * 100:.1f}¢"
-            asyncio.create_task(self._live_buy(side, ask, qty))
+            asyncio.create_task(self._live_buy(
+                side, ask, qty, toks.get(side), _ws or S.ws_start))
         else:
             S.msg = (f"PAPER BUY {side.upper()} {qty:.1f}sh @ {ask * 100:.1f}¢ "
                      f"(${S.stake:,.2f})")
@@ -442,10 +444,11 @@ class TraderApp(App):
             S.pos.entry = ask
             S.pos.ts = time.time()
             S.pos.stake = S.stake
+            S.pos.ws = _ws or S.ws_start
         self.refresh_view()
 
-    async def _live_buy(self, side, ask, qty):
-        tok = S.tokens.get(side)
+    async def _live_buy(self, side, ask, qty, tok=None, ws=0):
+        tok = tok or S.tokens.get(side)
         try:
             ok, detail = await asyncio.to_thread(S.broker.buy, tok, S.stake, ask)
         except Exception as e:
@@ -462,6 +465,7 @@ class TraderApp(App):
         S.pos.entry = price
         S.pos.ts = time.time()
         S.pos.stake = S.stake
+        S.pos.ws = ws or S.ws_start
         await self._refresh_balance()
 
     async def _live_sell(self, bid):
@@ -518,10 +522,13 @@ class TraderApp(App):
         self.refresh_view()
 
     def maybe_fire_armed(self):
-        """Fire an armed next-window buy once the new book exists.
+        """Fire an armed next-window buy as soon as its book is live.
 
-        Runs every tick; consumes the arming only when the buy path is
-        actually attempted, and drops it if the window passed without books.
+        The next market usually lists about a minute early, so the buy often
+        fires before the boundary; otherwise it fires once the new book
+        exists after the open. Runs every tick; consumes the arming only
+        when the buy path is actually attempted, and drops it if the window
+        passed without books.
         """
         if not S.armed or S.pos.side:
             return
@@ -531,15 +538,26 @@ class TraderApp(App):
             S.armed = ""  # missed the window; never buy a window late
             S.armed_ws = 0
             return
-        if S.ws_start != S.armed_ws or time.time() - S.ws_start < 8:
+        if S.ws_start == S.armed_ws:
+            if time.time() - S.ws_start < 8:
+                return
+            toks, bk, ws = S.tokens, cur_book(S.armed), S.armed_ws
+        elif S.armed_ws == S.ws_start + 300:
+            # pre-start: the next book is live a minute early
+            toks = S.next_tokens
+            aid = toks.get(S.armed)
+            bk = S.next_books.get(aid) if aid else None
+            ws = S.armed_ws
+        else:
+            S.armed = ""  # stale arming from an older session state
+            S.armed_ws = 0
             return
-        bk = cur_book(S.armed)
-        if not bk or not bk.best_ask():
+        if not bk or bk.best_ask() is None:
             return  # books not loaded yet; stay armed for the next tick
         side = S.armed
         S.armed = ""
         S.armed_ws = 0
-        self.action_buy(side)
+        self.action_buy(side, _tokens=toks, _book=bk, _ws=ws)
 
     def action_sell(self):
         if not S.pos.side:
@@ -647,7 +665,7 @@ class TraderApp(App):
         """Take profit, breakeven lock, hard stop. Evaluated at 30 Hz."""
         if not S.pos.side or not S.pos.entry:
             return
-        mk = mark_price(S.pos.side)
+        mk = pos_mark()
         if mk is None:
             return
         reason, S.pos.locked = exit_decision(

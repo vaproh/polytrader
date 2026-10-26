@@ -89,7 +89,7 @@ def roll_to_window(ws, toks, px=None):
     position at 0.00, a fake total loss. Pass `px` when a live sell already
     reported a fill price.
     """
-    if S.pos.side:
+    if S.pos.side and (not S.pos.ws or S.pos.ws == S.ws_start):
         settle_position("window rolled", px)
     S.tokens = toks
     S.slug = f"btc-updown-5m-{ws}"

@@ -461,6 +461,83 @@ def test_armed_entry_fires_after_the_open(S, monkeypatch):
     assert S.armed == ""
 
 
+def test_armed_entry_fires_before_the_open_when_the_book_is_live(S):
+    from polytrader.ui.app import TraderApp
+
+    app = object.__new__(TraderApp)
+    S.stake = 5.0
+    S.ws_start = 1793035800
+    S.armed = "up"
+    S.armed_ws = 1793036100
+    S.next_tokens = {"up": "NU", "dn": "ND"}
+    S.next_books = {"NU": Book(asks={0.40: 100.0}, bids={0.38: 50.0}),
+                    "ND": Book()}
+
+    TraderApp.maybe_fire_armed(app)
+
+    assert S.pos.side == "up"
+    assert S.pos.ws == 1793036100
+    assert S.armed == ""
+
+
+def test_armed_entry_waits_for_the_next_book(S):
+    from polytrader.ui.app import TraderApp
+
+    app = object.__new__(TraderApp)
+    S.ws_start = 1793035800
+    S.armed = "up"
+    S.armed_ws = 1793036100
+    S.next_tokens = {}
+    S.next_books = {}
+
+    TraderApp.maybe_fire_armed(app)
+
+    assert S.armed == "up"
+    assert S.pos.side == ""
+
+
+def test_refresh_next_stores_tokens_and_books(S, monkeypatch):
+    import asyncio
+
+    from polytrader import poly as polymod
+    from polytrader.feeds import window as win
+
+    monkeypatch.setattr(polymod, "market", lambda slug: {
+        "outcomes": ["Up", "Down"], "token_ids": ["U", "D"]})
+    monkeypatch.setattr(polymod, "book", lambda aid: {
+        "best_bid": 0.40, "bid_size": 10.0,
+        "best_ask": 0.42, "ask_size": 5.0})
+    S.ws_start = 1793035800
+
+    asyncio.run(win._refresh_next(1793036100))
+
+    assert S.next_tokens == {"up": "U", "dn": "D"}
+    assert S.next_books["U"].best_ask() == pytest.approx(0.42)
+    assert S.next_slug == "btc-updown-5m-1793036100"
+
+
+def test_books_preview_the_next_window(S):
+    import time
+
+    S.ws_start = int(time.time())
+    S.next_tokens = {"up": "NU", "dn": "ND"}
+    S.next_books = {"NU": Book(bids={0.12: 10.0}, asks={0.13: 5.0}),
+                    "ND": Book(bids={0.87: 10.0}, asks={0.88: 5.0})}
+
+    text = panels.make_books_text().plain
+
+    assert "NEXT btc-updown-5m-" in text
+    assert "starts in" in text
+    assert "12.0¢/13.0¢" in text
+    assert "87.0¢/88.0¢" in text
+
+    S.next_tokens = {}
+    S.next_books = {}
+    S.next_slug = ""
+
+    assert "not listed yet" in panels.make_books_text().plain
+
+
 def test_position_panel_shows_exits_off(S):
     from polytrader.state import Book
 

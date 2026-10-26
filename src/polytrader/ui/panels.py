@@ -9,7 +9,7 @@ from rich.text import Text
 from ..config import effective_preset, fmt_leg
 from ..detector import (btc_state, fair_p, gate_checks, rsi_fast, rsi_last,
                         vol_window, warnings)
-from ..state import S, cur_book, mark_price, secs_left
+from ..state import S, cur_book, pos_mark, secs_left
 
 REG_STYLE = {"DEAD": "red", "TREND": "red", "CHOP": "green",
              "CHOP-DOWN": "bright_green", "VOLATILE": "yellow",
@@ -238,6 +238,24 @@ def make_books_text():
                 b.append(f" / DOWN {S.stake / da:.1f}sh", style="dim")
         else:
             b.append("-- (press a)", style="dim")
+        b.append("\n")
+
+    if S.ws_start:
+        nxt = S.ws_start + 300
+        left_n = max(0.0, nxt - time.time())
+        b.append(f"NEXT btc-updown-5m-{nxt} starts in {clock(left_n)}\n",
+                 style="bold")
+        nbooks = []
+        for side in ("up", "dn"):
+            aid = S.next_tokens.get(side)
+            nbooks.append(S.next_books.get(aid) if aid else None)
+        if all(nbooks) and all(k.best_bid() is not None for k in nbooks):
+            nbu, nbd = nbooks
+            b.append(f"{_c(nbu.best_bid())}/{_c(nbu.best_ask())} UP   "
+                     f"{_c(nbd.best_bid())}/{_c(nbd.best_ask())} DN",
+                     style="dim")
+        else:
+            b.append("not listed yet", style="dim")
 
     return b
 
@@ -327,11 +345,13 @@ def make_position_text():
     p = Text()
     p.append("POSITION  ", style="bold")
     if S.pos.side:
-        mk = mark_price(S.pos.side)
+        mk = pos_mark()
         pnl = (mk - S.pos.entry) * S.pos.qty if mk is not None else 0.0
         pct = (mk / S.pos.entry - 1) * 100 if mk is not None and S.pos.entry else 0.0
         st = "green" if pnl >= 0 else "red"
         p.append(f"{S.pos.side.upper()}  {S.pos.qty:.1f} sh", style="bold")
+        if S.pos.ws and S.ws_start and S.pos.ws != S.ws_start:
+            p.append("  (next)", style="yellow")
         p.append(f"   cost {_usd(S.pos.entry * S.pos.qty)}", style="dim")
         if mk is not None:
             p.append(f"   value {_usd(mk * S.pos.qty)}", style="dim")

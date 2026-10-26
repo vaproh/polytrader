@@ -42,6 +42,35 @@ def test_rollover_without_a_position_just_switches(S):
     assert S.trades == []
 
 
+def test_rollover_keeps_a_pre_entered_next_window_position(S):
+    S.tokens = {"up": "OLD", "dn": "OLDD"}
+    S.books = {"OLD": Book(bids={0.55: 10.0})}
+    S.pos.side = "up"
+    S.pos.qty = 10.0
+    S.pos.entry = 0.50
+    S.pos.ws = 2000  # bought early for the incoming window
+    S.ws_start = 1000
+
+    roll_to_window(2000, {"up": "NEW", "dn": "NEWD"})
+
+    assert S.pos.side == "up"
+    assert S.pos.qty == 10.0
+    assert S.trades == []
+    assert S.tokens == {"up": "NEW", "dn": "NEWD"}
+
+
+def test_pos_mark_uses_the_next_book_before_rollover(S):
+    from polytrader.state import pos_mark
+
+    S.pos.side = "up"
+    S.pos.ws = 2000
+    S.ws_start = 1000
+    S.next_tokens = {"up": "NU"}
+    S.next_books = {"NU": Book(bids={0.42: 5.0})}
+
+    assert pos_mark() == pytest.approx(0.42)
+
+
 def test_new_minute_appends_a_closed_bar(S):
     S.klines = [1.0, 2.0, 3.0]
     S.bar_ts = 10

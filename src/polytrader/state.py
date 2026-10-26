@@ -44,6 +44,7 @@ class Position:
     ts: float = 0.0
     stake: float = 0.0
     locked: bool = False     # breakeven reached -> stop sits at entry
+    ws: int = 0              # window the position belongs to (pre-entry)
 
     def clear(self):
         self.side = ""
@@ -52,6 +53,7 @@ class Position:
         self.ts = 0.0
         self.stake = 0.0
         self.locked = False
+        self.ws = 0
 
 
 class State:
@@ -125,6 +127,11 @@ class State:
         self.flash_until = 0.0    # status line highlights a fresh close
         self.book_ts = 0.0        # last CLOB message or REST book fill
         self.twap_data_ts = 0.0  # newest published TWAP point (monotonic)
+        self.next_tokens: dict[str, str] = {}  # next window's "up"/"dn" -> asset_id
+        self.next_books: dict[str, Book] = {}  # next window's asset_id -> Book
+        self.next_slug = ""
+        self.next_ws = 0
+        self.next_ts = 0.0  # last refresh of the next window's books
 
 
 S = State()
@@ -144,3 +151,20 @@ def mark_price(side):
     if not bk:
         return None
     return bk.best_bid()
+
+
+def pos_mark():
+    """Mark for the open position, from its own window's book.
+
+    A pre-entered position belongs to the next window, whose book lives in
+    S.next_books until rollover. Pricing it off the current book would mark
+    a next-window position against expiring tokens.
+    """
+    if not S.pos.side:
+        return None
+    if S.pos.ws and S.ws_start and S.pos.ws != S.ws_start:
+        aid = S.next_tokens.get(S.pos.side)
+        bk = S.next_books.get(aid) if aid else None
+    else:
+        bk = cur_book(S.pos.side)
+    return bk.best_bid() if bk else None

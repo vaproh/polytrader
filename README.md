@@ -36,7 +36,7 @@ wallet first. Otherwise orders fail on allowance, not balance.
 
 | key | action | | key | action |
 |---|---|---|---|---|
-| `u` / `d` | buy UP / DOWN at ask | | `U` / `D` | arm UP / DOWN for next window |
+| `u` / `d` | buy UP / DOWN at ask | | `U` / `D` | arm UP / DOWN for next window (fires early if its book is live) |
 | `s` | sell at bid | | `1`-`9` | stake $1-9 |
 | | | | `a` | custom dollar amount |
 | `p` | pause detector | | `[` `]` | preset prev/next |
@@ -161,7 +161,7 @@ Seven panels, top to bottom:
 |---|---|
 | **status** | BTC spot, price to beat and source, current TWAP with UP/DOWN and dollar/percent distance, session %, mode, cash/order/after/cap, stake, pause, last action |
 | **window** | window slug, countdown and progress bar, price to beat and source, 60s TWAP now with UP/DOWN and distance, Binance spot as context, resolution rule |
-| **books** | both outcome tokens, best bid/ask with size, depth within 3c, shares the stake buys, pair bid/ask and overround, fresh/stale quote age |
+| **books** | both outcome tokens, best bid/ask with size, depth within 3c, shares the stake buys, pair bid/ask and overround, fresh/stale quote age, plus the next window's countdown and book preview |
 | **signal** | detected regime, fair P(up) vs market ask, token bid base rates, z-score, tick vol, travel, 30s/60s move, RSI(1m) 6/12/14/24 plus a per-second RSI(5s), gate checks |
 | **alerts** | mechanical warnings: RSI extremes, volume surge, aggressor split, CVD, divergence, vol expansion, streaks, EMA200, MACD, Bollinger squeeze |
 | **pos** | side, size, cost, value, pays-on-win, entry, mark, P&L, stop and TP prices, session P&L, win rate, preset |
