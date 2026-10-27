@@ -183,7 +183,10 @@ of book history before it names a regime. A brand-new window also has an empty b
 
 RSI(14) uses the one-minute close series. Until 15 closes exist the panel shows
 `RSI -- (n/15 bars)`, never a fake 50. If the startup REST seed fails, it retries
-every 30 s while the series is short. Once warm, the RSI is printed to one
+every 30 s while the series is short. Closed bars re-pin to the official
+Binance closes every 30 s, so a socket hiccup can never leave the RSI reading
+a tape Binance never printed; only the live forming bar is built from ticks.
+Once warm, the RSI is printed to one
 decimal: a 14-period RSI on 1-minute bars moves slowly on purpose, so it will
 not jump around like a tick indicator.
 

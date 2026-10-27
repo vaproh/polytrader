@@ -640,7 +640,7 @@ def test_risk_modal_applies_per_preset_numbers_for_the_session_only(S, tmp_path,
         return None
 
     for name in ("binance_loop", "window_loop", "chainlink_loop",
-                 "rest_fallback_loop", "basis_loop", "clob_loop", "flow_loop"):
+                 "rest_fallback_loop", "basis_loop", "clob_loop", "flow_loop", "kline_resync_loop"):
         monkeypatch.setattr(ui, name, noop)
     monkeypatch.setattr(ui, "fetch_klines", lambda: [])
 
@@ -715,7 +715,7 @@ def test_amount_binding_sets_the_stake(S, monkeypatch):
         return None
 
     for name in ("binance_loop", "window_loop", "chainlink_loop",
-                 "rest_fallback_loop", "basis_loop", "clob_loop", "flow_loop"):
+                 "rest_fallback_loop", "basis_loop", "clob_loop", "flow_loop", "kline_resync_loop"):
         monkeypatch.setattr(ui, name, noop)
     monkeypatch.setattr(ui, "fetch_klines", lambda: [])
 
@@ -743,7 +743,7 @@ def test_live_sell_books_dust_instead_of_sending_it(S, monkeypatch):
         return None
 
     for name in ("binance_loop", "window_loop", "chainlink_loop",
-                 "rest_fallback_loop", "basis_loop", "clob_loop", "flow_loop"):
+                 "rest_fallback_loop", "basis_loop", "clob_loop", "flow_loop", "kline_resync_loop"):
         monkeypatch.setattr(ui, name, noop)
     monkeypatch.setattr(ui, "fetch_klines", lambda: [])
     S.tokens = {"dn": "TOK"}
