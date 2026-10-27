@@ -203,3 +203,11 @@ def test_rsi_fast_reads_one_second_buckets():
     S.btc_hist.extend((2000.0 + i, 80200.0 - i * 10) for i in range(20))
     assert detector.rsi_fast(14, 1.0) < 40
     S.btc_hist.clear()
+
+
+def test_rsi_fast_scales_warmup_with_the_period():
+    S.btc_hist.clear()
+    S.btc_hist.extend((2000.0 + i, 80000.0 + i * 10) for i in range(20))
+    assert detector.rsi_fast(6, 1.0) is not None
+    assert detector.rsi_fast(24, 1.0) is None  # needs 25 one-second closes
+    S.btc_hist.clear()

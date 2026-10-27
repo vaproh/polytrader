@@ -380,13 +380,19 @@ def make_signal_text():
     else:
         t.append(f"-- ({len(S.klines)}/7 bars)", style="dim")
     rf = rsi_fast()
-    r1 = rsi_fast(14, 1.0)
-    for label, r in (("5s", rf), ("1s", r1)):
+    if rf is None:
+        t.append("  5s:--", style="dim")
+    else:
+        col = "red" if rf >= 70 else ("green" if rf <= 30 else "white")
+        t.append(f"  5s:{rf:.1f}", style=col)
+    t.append("  1s ", style="dim")
+    for p in (6, 12, 24):
+        r = rsi_fast(p, 1.0)
         if r is None:
-            t.append(f"  {label}:--", style="dim")
+            t.append(f"{p}:-- ", style="dim")
         else:
             col = "red" if r >= 70 else ("green" if r <= 30 else "white")
-            t.append(f"  {label}:{r:.1f}", style=col)
+            t.append(f"{p}:{r:.1f} ", style=col)
     t.append("\n")
 
     ch = gate_checks()
