@@ -22,6 +22,37 @@ def fetch_klines(limit=120):
         return []
 
 
+def _resync_klines(official, forming):
+    """Replace closed bars with the official closes; keep our live forming bar.
+
+    Returns None when there is nothing usable, leaving the tape untouched.
+    """
+    closed = [c for c in official[:-1] if c > 0][-199:]
+    if not closed:
+        return None
+    last = official[-1] if official else 0.0
+    return closed + [(forming if forming > 0 else last)]
+
+
+async def kline_resync_loop():
+    """Re-pin closed 1m bars to the official closes every 30 s.
+
+    Tick-built bars drift after any socket hiccup (a multi-minute gap
+    freezes a single bar), and the RSI then reads a tape Binance never
+    printed. The live forming bar is always ours.
+    """
+    while True:
+        await asyncio.sleep(30.0)
+        try:
+            ks = await asyncio.to_thread(fetch_klines)
+            if len(ks) >= 20:
+                bars = _resync_klines(ks, S.btc)
+                if bars:
+                    S.klines = bars
+        except Exception as e:
+            S.msg = f"klines: {str(e)[:40]}"
+
+
 def on_price_tick(p, now):
     """Fold one trade price into the spot history and the 1m close series.
 

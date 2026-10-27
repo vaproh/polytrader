@@ -15,7 +15,7 @@ from ..config import PRESETS, effective_preset, fmt_leg, save_cfg
 from ..detector import recompute_detector, twap60
 from ..engine import exit_decision, settle_position
 from ..feeds.basis import basis_loop
-from ..feeds.binance import binance_loop, fetch_klines
+from ..feeds.binance import binance_loop, fetch_klines, kline_resync_loop
 from ..feeds.chainlink import chainlink_loop
 from ..feeds.clob import clob_loop, rest_fallback_loop
 from ..feeds.flow import flow_loop
@@ -292,6 +292,7 @@ class TraderApp(App):
 
     async def _boot(self):
         asyncio.create_task(binance_loop())
+        asyncio.create_task(kline_resync_loop())
         asyncio.create_task(window_loop())
         asyncio.create_task(flow_loop())
         asyncio.create_task(chainlink_loop())
