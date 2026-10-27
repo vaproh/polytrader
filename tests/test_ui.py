@@ -98,10 +98,10 @@ def test_signal_warms_each_rsi_period_in_turn(S):
 
     text = panels.make_signal_text().plain
 
-    assert "6:" in text
-    assert "12:" not in text
-    assert "14:" not in text
-    assert "24:" not in text
+    assert "6:100.0" in text
+    assert "12:100.0" not in text
+    assert "14:100.0" not in text
+    assert "24:100.0" not in text
 
 
 def test_signal_shows_nothing_fake_before_the_fastest_rsi(S):
@@ -127,13 +127,18 @@ def test_signal_prints_every_rsi_with_one_decimal(S):
 
 def test_signal_shows_per_second_rsi(S):
     S.btc_hist.clear()
-    S.btc_hist.extend((2000.0 + i, 80000.0 + i * 10) for i in range(20))
+    S.btc_hist.extend((2000.0 + i, 80000.0 + i * 10) for i in range(30))
 
-    assert "1s:--" not in panels.make_signal_text().plain
+    text = panels.make_signal_text().plain
+    assert "1s " in text
+    assert "6:--" not in text
+    assert "24:--" not in text
 
     S.btc_hist.clear()
 
-    assert "1s:--" in panels.make_signal_text().plain
+    text = panels.make_signal_text().plain
+    assert "6:--" in text
+    assert "24:--" in text
 
 
 def test_trades_show_the_close_reason(S):
