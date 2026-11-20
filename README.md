@@ -7,6 +7,10 @@ The terminal is the product. It does not tell you what to buy; it shows the
 state, the measured frequencies behind that state, and your position, and it
 gets out of the way.
 
+![live terminal](docs/terminal.png)
+_Paper mode on a live window: beat and 60s TWAP from the exact feed, live
+books, regime detector warming up, FLOW tape printing taker fills._
+
 ---
 
 ## 1. Quick start
@@ -252,6 +256,7 @@ at `_make_client`, so they never place an order or read a key.
 | `src/polytrader/broker.py` | live broker (`polymarket-client`), opt-in; `uv run polytrader-doctor` prints the derived signer |
 | `src/polytrader/poly.py` | Polymarket REST helpers: market lookup and book |
 | `tests/` | pytest suite |
+| `docs/terminal.png` | live screenshot used above |
 | `RUN-LOCAL.md` | credentials, allowances, wallet setup |
 | `.env.example` | credential template |
 | `pyproject.toml`, `uv.lock` | dependencies, pinned |
